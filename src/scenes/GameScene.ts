@@ -1,5 +1,5 @@
 /**
- * 游戏主场景
+ * 游戏主场景 - 动态追逐版
  */
 
 import Phaser from 'phaser';
@@ -8,33 +8,46 @@ import {
 } from '../config/GameConfig';
 import { Room } from '../objects/Room';
 import { Ghost } from '../objects/Ghost';
-import { AIPlayer } from '../objects/AIPlayer';
+import { Player, PlayerState } from '../objects/Player';
 import { SaveManager } from '../utils/SaveManager';
 
 export class GameScene extends Phaser.Scene {
-  state: GameState = GameState.SELECTING;
+  state: GameState = GameState.PLAYING;
 
+  player!: Player;
   rooms: Room[] = [];
   ghosts: Ghost[] = [];
-  aiPlayers: AIPlayer[] = [];
 
-  playerRoom: Room | null = null;
-  gold: number = 0;
   wave: number = 0;
   kills: number = 0;
-
-  selectionTimer: number = 0;
   gameTimer: number = 0;
   spawnTimer: number = 0;
 
-  // UI elements
+  // Map dimensions
+  mapWidth: number = GAME_CONFIG.mapWidth;
+  mapHeight: number = GAME_CONFIG.mapHeight;
+
+  // Virtual Joystick
+  joystickBase!: Phaser.GameObjects.Arc;
+  joystickThumb!: Phaser.GameObjects.Arc;
+  joystickPointer: Phaser.Input.Pointer | null = null;
+  joystickStartX: number = 0;
+  joystickStartY: number = 0;
+
+  // UI (fixed to camera)
+  uiContainer!: Phaser.GameObjects.Container;
   timerText!: Phaser.GameObjects.Text;
   goldText!: Phaser.GameObjects.Text;
   waveText!: Phaser.GameObjects.Text;
   messageText!: Phaser.GameObjects.Text;
-  statusText!: Phaser.GameObjects.Text;
+  stateText!: Phaser.GameObjects.Text;
 
-  // Buttons
+  // Interaction button
+  lieDownBtn!: Phaser.GameObjects.Container;
+  getUpBtn!: Phaser.GameObjects.Container;
+  nearbyRoom: Room | null = null;
+
+  // Upgrade panel
   upgradePanel!: Phaser.GameObjects.Container;
 
   constructor() {
@@ -42,38 +55,52 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.state = GameState.SELECTING;
-    this.gold = SaveManager.getStartGoldBonus();
+    this.state = GameState.PLAYING;
     this.wave = 0;
     this.kills = 0;
-    this.selectionTimer = GAME_CONFIG.selectionTime;
     this.gameTimer = 0;
     this.spawnTimer = GAME_CONFIG.ghostDelay;
 
-    this.drawBackground();
-    this.createRooms();
-    this.createUI();
-    this.assignAIPlayers();
+    // Set world bounds larger than camera
+    this.physics.world.setBounds(0, 0, this.mapWidth, this.mapHeight);
 
-    this.input.on('pointerdown', this.handleClick, this);
+    this.drawMap();
+    this.createRooms();
+    this.createPlayer();
+    this.setupCamera();
+    this.createJoystick();
+    this.createUI();
+    this.createInteractionButtons();
+
+    // Input events
+    this.input.on('pointerdown', this.onPointerDown, this);
+    this.input.on('pointermove', this.onPointerMove, this);
+    this.input.on('pointerup', this.onPointerUp, this);
+
+    // Keyboard controls (alternative)
+    this.input.keyboard?.on('keydown-SPACE', () => this.toggleLieDown());
   }
 
-  private drawBackground(): void {
+  private drawMap(): void {
     const g = this.add.graphics();
 
-    // Main corridor
+    // Dark corridor background
     g.fillStyle(COLORS.corridor);
-    g.fillRect(0, 0, GAME_CONFIG.width, GAME_CONFIG.height);
+    g.fillRect(0, 0, this.mapWidth, this.mapHeight);
 
-    // Corridor floor pattern
-    g.fillStyle(COLORS.corridorFloor);
-    for (let y = 0; y < GAME_CONFIG.height; y += 40) {
-      for (let x = 0; x < GAME_CONFIG.width; x += 40) {
-        if ((Math.floor(x / 40) + Math.floor(y / 40)) % 2 === 0) {
-          g.fillRect(x, y, 40, 40);
+    // Checkered floor pattern
+    g.fillStyle(COLORS.corridorFloor, 0.5);
+    for (let y = 0; y < this.mapHeight; y += 50) {
+      for (let x = 0; x < this.mapWidth; x += 50) {
+        if ((Math.floor(x / 50) + Math.floor(y / 50)) % 2 === 0) {
+          g.fillRect(x, y, 50, 50);
         }
       }
     }
+
+    // Map border
+    g.lineStyle(4, 0x4a6fa5);
+    g.strokeRect(2, 2, this.mapWidth - 4, this.mapHeight - 4);
   }
 
   private createRooms(): void {
@@ -84,151 +111,270 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private createUI(): void {
-    const style = { fontSize: '16px', color: '#ffffff', fontFamily: 'Arial' };
-    const boldStyle = { fontSize: '18px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold' };
+  private createPlayer(): void {
+    // Start player in center of map
+    const startX = this.mapWidth / 2;
+    const startY = this.mapHeight / 2;
+    this.player = new Player(this, startX, startY);
+    this.player.gold = SaveManager.getStartGoldBonus();
+  }
 
-    // Top bar
-    this.add.rectangle(GAME_CONFIG.width / 2, 25, GAME_CONFIG.width - 20, 40, 0x000000, 0.7)
+  private setupCamera(): void {
+    // Camera follows player with smooth lerp
+    this.cameras.main.setBounds(0, 0, this.mapWidth, this.mapHeight);
+    this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
+    this.cameras.main.setZoom(1);
+  }
+
+  private createJoystick(): void {
+    // Fixed position on screen (bottom-left)
+    const baseX = 100;
+    const baseY = GAME_CONFIG.height - 120;
+
+    this.joystickBase = this.add.circle(baseX, baseY, 60, 0x000000, 0.4)
+      .setStrokeStyle(3, 0x4a6fa5)
+      .setScrollFactor(0)
+      .setDepth(1000);
+
+    this.joystickThumb = this.add.circle(baseX, baseY, 30, 0x4a6fa5, 0.8)
+      .setScrollFactor(0)
+      .setDepth(1001);
+  }
+
+  private createUI(): void {
+    // UI container (fixed to camera)
+    this.uiContainer = this.add.container(0, 0).setScrollFactor(0).setDepth(900);
+
+    // Top bar background
+    const topBar = this.add.rectangle(GAME_CONFIG.width / 2, 30, GAME_CONFIG.width - 20, 50, 0x000000, 0.7)
       .setStrokeStyle(2, 0x4a6fa5);
 
-    this.timerText = this.add.text(20, 15, '', boldStyle);
-    this.goldText = this.add.text(GAME_CONFIG.width - 20, 15, '', { ...boldStyle, color: '#ffd700' })
-      .setOrigin(1, 0);
-    this.waveText = this.add.text(GAME_CONFIG.width / 2, 15, '', style).setOrigin(0.5, 0);
+    // Timer
+    this.timerText = this.add.text(20, 20, '', {
+      fontSize: '18px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+    });
 
-    // Message area
-    this.messageText = this.add.text(GAME_CONFIG.width / 2, 55, '', {
+    // Gold
+    this.goldText = this.add.text(GAME_CONFIG.width - 20, 20, '', {
+      fontSize: '18px', color: '#ffd700', fontFamily: 'Arial', fontStyle: 'bold'
+    }).setOrigin(1, 0);
+
+    // Wave
+    this.waveText = this.add.text(GAME_CONFIG.width / 2, 20, '', {
+      fontSize: '16px', color: '#ffffff', fontFamily: 'Arial'
+    }).setOrigin(0.5, 0);
+
+    // Message
+    this.messageText = this.add.text(GAME_CONFIG.width / 2, 65, '', {
       fontSize: '14px', color: '#ffeb3b', fontFamily: 'Arial'
     }).setOrigin(0.5, 0);
 
-    // Status text (bottom)
-    this.statusText = this.add.text(GAME_CONFIG.width / 2, GAME_CONFIG.height - 50, '', {
-      fontSize: '14px', color: '#ffffff', fontFamily: 'Arial', backgroundColor: '#333333',
-      padding: { x: 10, y: 5 }
-    }).setOrigin(0.5, 0);
+    // Player state indicator
+    this.stateText = this.add.text(GAME_CONFIG.width / 2, GAME_CONFIG.height - 200, '', {
+      fontSize: '16px', color: '#4CAF50', fontFamily: 'Arial', fontStyle: 'bold'
+    }).setOrigin(0.5);
 
-    // Upgrade panel (hidden initially)
+    this.uiContainer.add([topBar, this.timerText, this.goldText, this.waveText, this.messageText, this.stateText]);
+
+    // Upgrade panel
     this.createUpgradePanel();
-
-    this.updateUI();
   }
 
   private createUpgradePanel(): void {
-    this.upgradePanel = this.add.container(GAME_CONFIG.width / 2, GAME_CONFIG.height - 120);
-    this.upgradePanel.setVisible(false);
+    this.upgradePanel = this.add.container(GAME_CONFIG.width / 2, GAME_CONFIG.height - 60)
+      .setScrollFactor(0)
+      .setDepth(950)
+      .setVisible(false);
 
-    const bg = this.add.rectangle(0, 0, 300, 80, 0x000000, 0.85)
+    const bg = this.add.rectangle(0, 0, 320, 70, 0x000000, 0.85)
       .setStrokeStyle(2, 0x4a6fa5);
 
-    const btnStyle = { fontSize: '12px', color: '#ffffff', backgroundColor: '#2d4a5e', padding: { x: 8, y: 4 } };
+    const btnStyle = { fontSize: '13px', color: '#ffffff', backgroundColor: '#2d5a2d', padding: { x: 10, y: 6 } };
 
-    const bedBtn = this.add.text(-100, -15, '升级床', btnStyle)
+    const bedBtn = this.add.text(-110, -10, '床 $50', btnStyle)
       .setOrigin(0.5).setInteractive({ useHandCursor: true })
       .on('pointerdown', () => this.upgradeBed());
 
-    const doorBtn = this.add.text(0, -15, '升级门', btnStyle)
+    const doorBtn = this.add.text(0, -10, '门 $30', btnStyle)
       .setOrigin(0.5).setInteractive({ useHandCursor: true })
       .on('pointerdown', () => this.upgradeDoor());
 
-    const turretBtn = this.add.text(100, -15, '建炮台', btnStyle)
+    const turretBtn = this.add.text(110, -10, '炮台 $50', btnStyle)
       .setOrigin(0.5).setInteractive({ useHandCursor: true })
       .on('pointerdown', () => this.buildTurret());
 
-    const infoText = this.add.text(0, 20, '', { fontSize: '11px', color: '#aaaaaa' }).setOrigin(0.5);
+    const infoText = this.add.text(0, 22, '', { fontSize: '11px', color: '#aaaaaa' }).setOrigin(0.5);
 
     this.upgradePanel.add([bg, bedBtn, doorBtn, turretBtn, infoText]);
-    this.upgradePanel.setData('infoText', infoText);
     this.upgradePanel.setData('bedBtn', bedBtn);
     this.upgradePanel.setData('doorBtn', doorBtn);
     this.upgradePanel.setData('turretBtn', turretBtn);
+    this.upgradePanel.setData('infoText', infoText);
   }
 
-  private assignAIPlayers(): void {
-    this.aiPlayers = [];
-    const availableRooms = this.rooms.filter(r => r.ownerId < 0);
+  private createInteractionButtons(): void {
+    // "Lie Down" button
+    this.lieDownBtn = this.add.container(GAME_CONFIG.width - 80, GAME_CONFIG.height - 150)
+      .setScrollFactor(0)
+      .setDepth(950)
+      .setVisible(false);
 
-    for (let i = 0; i < 4 && i < availableRooms.length; i++) {
-      const ai = new AIPlayer(i);
-      ai.setRoom(availableRooms[i]);
-      ai.gold = 20;
-      this.aiPlayers.push(ai);
+    const lieBtn = this.add.rectangle(0, 0, 100, 50, 0x4CAF50)
+      .setStrokeStyle(2, 0xffffff)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this.lieDown());
+
+    const lieTxt = this.add.text(0, 0, '躺平', {
+      fontSize: '18px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    this.lieDownBtn.add([lieBtn, lieTxt]);
+
+    // "Get Up" button
+    this.getUpBtn = this.add.container(GAME_CONFIG.width - 80, GAME_CONFIG.height - 150)
+      .setScrollFactor(0)
+      .setDepth(950)
+      .setVisible(false);
+
+    const upBtn = this.add.rectangle(0, 0, 100, 50, 0xff9800)
+      .setStrokeStyle(2, 0xffffff)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this.getUp());
+
+    const upTxt = this.add.text(0, 0, '起床', {
+      fontSize: '18px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    this.getUpBtn.add([upBtn, upTxt]);
+  }
+
+  // ========== INPUT HANDLING ==========
+
+  private onPointerDown(pointer: Phaser.Input.Pointer): void {
+    // Check if touching joystick area
+    const jx = this.joystickBase.x;
+    const jy = this.joystickBase.y;
+    const dist = Phaser.Math.Distance.Between(pointer.x, pointer.y, jx, jy);
+
+    if (dist < 80) {
+      this.joystickPointer = pointer;
+      this.joystickStartX = jx;
+      this.joystickStartY = jy;
     }
   }
 
-  private handleClick(pointer: Phaser.Input.Pointer): void {
-    const { x, y } = pointer;
+  private onPointerMove(pointer: Phaser.Input.Pointer): void {
+    if (this.joystickPointer && pointer.id === this.joystickPointer.id) {
+      const dx = pointer.x - this.joystickStartX;
+      const dy = pointer.y - this.joystickStartY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const maxDist = 50;
 
-    if (this.state === GameState.SELECTING) {
-      for (const room of this.rooms) {
-        if (room.ownerId < 0 && room.contains(x, y)) {
-          this.selectRoom(room);
-          return;
-        }
+      if (dist > maxDist) {
+        this.joystickThumb.x = this.joystickStartX + (dx / dist) * maxDist;
+        this.joystickThumb.y = this.joystickStartY + (dy / dist) * maxDist;
+      } else {
+        this.joystickThumb.x = pointer.x;
+        this.joystickThumb.y = pointer.y;
       }
-    } else if (this.state === GameState.PLAYING && this.playerRoom) {
-      const cell = this.playerRoom.getCellAt(x, y);
-      if (cell && cell !== this.playerRoom.grid[0] && !cell.building) {
-        this.showBuildMenu(cell);
-      }
+
+      // Apply velocity to player
+      const vx = (this.joystickThumb.x - this.joystickStartX) / maxDist;
+      const vy = (this.joystickThumb.y - this.joystickStartY) / maxDist;
+      this.player.setVelocity(vx, vy);
     }
   }
 
-  private selectRoom(room: Room): void {
-    this.playerRoom = room;
-    room.setOwner(0, '玩家', true);
-
-    this.state = GameState.PLAYING;
-    this.showMessage('选择成功！准备防御猛鬼！');
-    this.upgradePanel.setVisible(true);
-    this.updateUpgradePanel();
+  private onPointerUp(pointer: Phaser.Input.Pointer): void {
+    if (this.joystickPointer && pointer.id === this.joystickPointer.id) {
+      this.joystickPointer = null;
+      this.joystickThumb.x = this.joystickBase.x;
+      this.joystickThumb.y = this.joystickBase.y;
+      this.player.setVelocity(0, 0);
+    }
   }
 
-  private showBuildMenu(_cell: { col: number; row: number }): void {
-    // For simplicity, auto-build turret on cell click
-    this.buildTurret();
+  // ========== GAME ACTIONS ==========
+
+  private toggleLieDown(): void {
+    if (this.player.state === PlayerState.MOVING && this.nearbyRoom) {
+      this.lieDown();
+    } else if (this.player.state === PlayerState.LYING_DOWN) {
+      this.getUp();
+    }
   }
+
+  private lieDown(): void {
+    if (!this.nearbyRoom || this.nearbyRoom.ownerId >= 0) return;
+    if (this.player.state !== PlayerState.MOVING) return;
+
+    this.player.lieDown(this.nearbyRoom);
+    this.showMessage('开始躺平！金币产出中...');
+  }
+
+  private getUp(): void {
+    if (this.player.state !== PlayerState.LYING_DOWN) return;
+
+    this.player.getUp();
+    this.showMessage('起床了！小心猎梦者追击！');
+  }
+
+  private upgradeBed(): void {
+    if (!this.player.currentRoom) return;
+    if (this.player.currentRoom.bedLevel >= BED_CONFIGS.length - 1) return;
+
+    const cost = BED_CONFIGS[this.player.currentRoom.bedLevel + 1].cost;
+    if (this.player.gold >= cost) {
+      this.player.gold -= cost;
+      this.player.currentRoom.upgradeBed();
+      this.showMessage(`床已升级！产出: ${this.player.currentRoom.getGoldPerSec()}/s`);
+    }
+  }
+
+  private upgradeDoor(): void {
+    if (!this.player.currentRoom) return;
+    if (this.player.currentRoom.doorLevel >= DOOR_CONFIGS.length - 1) return;
+
+    const cost = DOOR_CONFIGS[this.player.currentRoom.doorLevel + 1].cost;
+    if (this.player.gold >= cost) {
+      this.player.gold -= cost;
+      this.player.currentRoom.upgradeDoor();
+      this.showMessage(`门已升级！HP: ${this.player.currentRoom.doorMaxHP}`);
+    }
+  }
+
+  private buildTurret(): void {
+    if (!this.player.currentRoom) return;
+
+    const cell = this.player.currentRoom.getEmptyCell();
+    if (!cell) {
+      this.showMessage('没有空位了！');
+      return;
+    }
+
+    const cost = BUILDING_CONFIGS.turret.cost;
+    if (this.player.gold >= cost) {
+      this.player.gold -= cost;
+      this.player.currentRoom.buildAt(cell, BUILDING_CONFIGS.turret);
+      this.showMessage('炮台建造完成！');
+    }
+  }
+
+  // ========== UPDATE LOOP ==========
 
   update(_time: number, delta: number): void {
+    if (this.state !== GameState.PLAYING) return;
+
     const dt = delta / 1000;
-
-    switch (this.state) {
-      case GameState.SELECTING:
-        this.updateSelecting(dt);
-        break;
-      case GameState.PLAYING:
-        this.updatePlaying(dt);
-        break;
-    }
-
-    this.updateUI();
-  }
-
-  private updateSelecting(dt: number): void {
-    this.selectionTimer -= dt;
-    if (this.selectionTimer <= 0) {
-      // Auto-select random empty room
-      const empty = this.rooms.filter(r => r.ownerId < 0);
-      if (empty.length > 0) {
-        this.selectRoom(empty[Math.floor(Math.random() * empty.length)]);
-      }
-    }
-  }
-
-  private updatePlaying(dt: number): void {
     this.gameTimer += dt;
 
-    // Gold generation
-    if (this.playerRoom) {
-      this.gold += this.playerRoom.getGoldPerSec() * dt;
-    }
+    // Update player
+    this.player.update(dt, this.mapWidth, this.mapHeight);
 
-    // AI players
-    for (const ai of this.aiPlayers) {
-      ai.update(dt);
-    }
+    // Check nearby rooms for interaction
+    this.checkNearbyRooms();
 
-    // Ghost spawn
+    // Spawn ghosts
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
       this.spawnGhostWave();
@@ -239,9 +385,15 @@ export class GameScene extends Phaser.Scene {
     for (const ghost of this.ghosts) {
       if (ghost.isDead) continue;
 
-      const brokenRoom = ghost.update(dt, this.rooms);
+      const brokenRoom = ghost.update(dt, this.player, this.rooms, this.mapWidth, this.mapHeight);
       if (brokenRoom) {
         this.handleRoomBroken(brokenRoom);
+      }
+
+      // Check player collision (game over if caught while moving)
+      if (ghost.checkPlayerCollision(this.player)) {
+        this.handlePlayerCaught();
+        return;
       }
 
       // Turret attacks
@@ -253,7 +405,7 @@ export class GameScene extends Phaser.Scene {
       if (g.isDead) {
         g.destroy();
         this.kills++;
-        this.gold += GAME_CONFIG.killReward;
+        this.player.gold += GAME_CONFIG.killReward;
         return false;
       }
       return true;
@@ -264,35 +416,72 @@ export class GameScene extends Phaser.Scene {
       this.endGame(true);
     }
 
-    this.updateUpgradePanel();
+    this.updateUI();
+  }
+
+  private checkNearbyRooms(): void {
+    if (this.player.state === PlayerState.LYING_DOWN) {
+      this.lieDownBtn.setVisible(false);
+      this.getUpBtn.setVisible(true);
+      this.upgradePanel.setVisible(true);
+      this.updateUpgradePanel();
+      return;
+    }
+
+    // Find empty room near player
+    this.nearbyRoom = null;
+    for (const room of this.rooms) {
+      if (room.ownerId >= 0) continue;
+
+      const dist = Phaser.Math.Distance.Between(
+        this.player.x, this.player.y,
+        room.doorX, room.doorY
+      );
+
+      if (dist < 80) {
+        this.nearbyRoom = room;
+        break;
+      }
+    }
+
+    this.lieDownBtn.setVisible(this.nearbyRoom !== null);
+    this.getUpBtn.setVisible(false);
+    this.upgradePanel.setVisible(false);
   }
 
   private spawnGhostWave(): void {
     this.wave++;
-    const count = 1 + Math.floor(this.wave / 3);
+    const count = 1 + Math.floor(this.wave / 4);
 
     for (let i = 0; i < count; i++) {
-      // Spawn in middle corridor area (visible)
-      const x = 160 + Math.random() * 130;
-      const y = 260 + Math.random() * 80 + i * 20;  // Corridor center area
+      // Spawn at random edge of map
+      let x: number, y: number;
+      const edge = Math.floor(Math.random() * 4);
+      switch (edge) {
+        case 0: x = 50; y = 100 + Math.random() * (this.mapHeight - 200); break; // Left
+        case 1: x = this.mapWidth - 50; y = 100 + Math.random() * (this.mapHeight - 200); break; // Right
+        case 2: x = 100 + Math.random() * (this.mapWidth - 200); y = 50; break; // Top
+        default: x = 100 + Math.random() * (this.mapWidth - 200); y = this.mapHeight - 50; break; // Bottom
+      }
+
       const ghost = new Ghost(this, x, y, this.wave);
       this.ghosts.push(ghost);
     }
 
-    this.showMessage(`第 ${this.wave} 波猛鬼来袭！`);
+    this.showMessage(`第 ${this.wave} 波猎梦者出现！`);
   }
 
   private processTurretAttacks(ghost: Ghost, dt: number): void {
     for (const room of this.rooms) {
+      if (room.ownerId < 0) continue;
+
       for (const turret of room.turrets) {
         if (!turret.config.range || !turret.config.damage) continue;
 
         const cell = room.grid.find(c => c.building === turret);
         if (!cell) continue;
 
-        const dx = ghost.x - cell.x;
-        const dy = ghost.y - cell.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const dist = Phaser.Math.Distance.Between(ghost.x, ghost.y, cell.x, cell.y);
 
         if (dist <= turret.config.range) {
           turret.attackTimer += dt;
@@ -306,56 +495,17 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleRoomBroken(room: Room): void {
-    if (room.isPlayerRoom) {
-      this.endGame(false);
-    } else {
-      const ai = this.aiPlayers.find(a => a.room === room);
-      if (ai) {
-        const msg = ai.die();
-        this.showMessage(msg);
-      }
+    if (room === this.player.currentRoom) {
+      // Player was in the room - forced out but invincible
+      this.player.getUp();
+      this.showMessage('门被破坏了！快逃！');
     }
+    room.clearOwner();
   }
 
-  private upgradeBed(): void {
-    if (!this.playerRoom) return;
-    if (this.playerRoom.bedLevel >= BED_CONFIGS.length - 1) return;
-
-    const cost = BED_CONFIGS[this.playerRoom.bedLevel + 1].cost;
-    if (this.gold >= cost) {
-      this.gold -= cost;
-      this.playerRoom.upgradeBed();
-      this.showMessage(`床已升级至 ${BED_CONFIGS[this.playerRoom.bedLevel].name}`);
-    }
-  }
-
-  private upgradeDoor(): void {
-    if (!this.playerRoom) return;
-    if (this.playerRoom.doorLevel >= DOOR_CONFIGS.length - 1) return;
-
-    const cost = DOOR_CONFIGS[this.playerRoom.doorLevel + 1].cost;
-    if (this.gold >= cost) {
-      this.gold -= cost;
-      this.playerRoom.upgradeDoor();
-      this.showMessage(`门已升级至 ${DOOR_CONFIGS[this.playerRoom.doorLevel].name}`);
-    }
-  }
-
-  private buildTurret(): void {
-    if (!this.playerRoom) return;
-
-    const cell = this.playerRoom.getEmptyCell();
-    if (!cell) {
-      this.showMessage('没有空位了！');
-      return;
-    }
-
-    const cost = BUILDING_CONFIGS.turret.cost;
-    if (this.gold >= cost) {
-      this.gold -= cost;
-      this.playerRoom.buildAt(cell, BUILDING_CONFIGS.turret);
-      this.showMessage('炮台建造完成！');
-    }
+  private handlePlayerCaught(): void {
+    this.showMessage('被猎梦者抓住了！');
+    this.endGame(false);
   }
 
   private showMessage(text: string): void {
@@ -368,31 +518,30 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateUI(): void {
-    if (this.state === GameState.SELECTING) {
-      this.timerText.setText(`选房: ${Math.ceil(this.selectionTimer)}s`);
-      this.waveText.setText('点击选择房间');
+    const remaining = Math.max(0, GAME_CONFIG.survivalTime - this.gameTimer);
+    this.timerText.setText(`存活: ${Math.ceil(remaining)}s`);
+    this.goldText.setText(`金币: ${Math.floor(this.player.gold)}`);
+    this.waveText.setText(`波次: ${this.wave} | 击杀: ${this.kills}`);
+
+    // State indicator
+    if (this.player.state === PlayerState.LYING_DOWN) {
+      this.stateText.setText(`躺平中 +${this.player.goldPerSec.toFixed(1)}/s`);
+      this.stateText.setColor('#4CAF50');
+    } else if (this.player.isInvincible()) {
+      this.stateText.setText('无敌中...');
+      this.stateText.setColor('#00ffff');
     } else {
-      const remaining = Math.max(0, GAME_CONFIG.survivalTime - this.gameTimer);
-      this.timerText.setText(`存活: ${Math.ceil(remaining)}s`);
-      this.waveText.setText(`波次: ${this.wave}`);
-    }
-
-    this.goldText.setText(`金币: ${Math.floor(this.gold)}`);
-
-    if (this.playerRoom && this.state === GameState.PLAYING) {
-      const dps = this.playerRoom.getDPS().toFixed(1);
-      const gps = this.playerRoom.getGoldPerSec().toFixed(1);
-      this.statusText.setText(`DPS: ${dps} | 产出: ${gps}/s | 击杀: ${this.kills}`);
+      this.stateText.setText('移动中 (危险!)');
+      this.stateText.setColor('#ff5722');
     }
   }
 
   private updateUpgradePanel(): void {
-    if (!this.playerRoom || !this.upgradePanel.visible) return;
+    if (!this.player.currentRoom) return;
 
-    const bedCost = this.playerRoom.bedLevel < BED_CONFIGS.length - 1
-      ? BED_CONFIGS[this.playerRoom.bedLevel + 1].cost : 0;
-    const doorCost = this.playerRoom.doorLevel < DOOR_CONFIGS.length - 1
-      ? DOOR_CONFIGS[this.playerRoom.doorLevel + 1].cost : 0;
+    const room = this.player.currentRoom;
+    const bedCost = room.bedLevel < BED_CONFIGS.length - 1 ? BED_CONFIGS[room.bedLevel + 1].cost : 0;
+    const doorCost = room.doorLevel < DOOR_CONFIGS.length - 1 ? DOOR_CONFIGS[room.doorLevel + 1].cost : 0;
     const turretCost = BUILDING_CONFIGS.turret.cost;
 
     const bedBtn = this.upgradePanel.getData('bedBtn') as Phaser.GameObjects.Text;
@@ -404,9 +553,7 @@ export class GameScene extends Phaser.Scene {
     doorBtn.setText(doorCost > 0 ? `门 $${doorCost}` : '门 MAX');
     turretBtn.setText(`炮台 $${turretCost}`);
 
-    const doorHP = `门HP: ${Math.floor(this.playerRoom.doorHP)}/${this.playerRoom.doorMaxHP}`;
-    const bedLv = `床Lv${this.playerRoom.bedLevel + 1}`;
-    infoText.setText(`${doorHP} | ${bedLv}`);
+    infoText.setText(`门HP: ${Math.floor(room.doorHP)}/${room.doorMaxHP} | 床Lv${room.bedLevel + 1}`);
   }
 
   private endGame(victory: boolean): void {
@@ -424,10 +571,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   shutdown(): void {
+    if (this.player) this.player.destroy();
     for (const room of this.rooms) room.destroy();
     for (const ghost of this.ghosts) ghost.destroy();
     this.rooms = [];
     this.ghosts = [];
-    this.aiPlayers = [];
   }
 }

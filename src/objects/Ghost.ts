@@ -1,10 +1,17 @@
 /**
- * 猛鬼AI类 - 状态机实现
+ * 猎梦者AI类 - 动态追逐状态机
  */
 
 import Phaser from 'phaser';
-import { GhostState, GAME_CONFIG, COLORS } from '../config/GameConfig';
+import { GAME_CONFIG, COLORS } from '../config/GameConfig';
 import { Room } from './Room';
+import { Player, PlayerState } from './Player';
+
+export enum GhostState {
+  PATROL = 'patrol',      // 巡逻寻找目标
+  CHASE = 'chase',        // 追击移动中的玩家
+  ATTACK_DOOR = 'attack'  // 攻击房门
+}
 
 export class Ghost {
   scene: Phaser.Scene;
@@ -20,15 +27,20 @@ export class Ghost {
   hp: number;
   damage: number;
   speed: number;
+  chaseSpeed: number;
 
-  state: GhostState = GhostState.IDLE;
+  state: GhostState = GhostState.PATROL;
+  targetPlayer: Player | null = null;
   targetRoom: Room | null = null;
   attackTimer: number = 0;
-  idleTimer: number = 0;
-  idleTargetX: number;
-  idleTargetY: number;
+  pathUpdateTimer: number = 0;
+
+  // Patrol waypoints
+  patrolTargetX: number;
+  patrolTargetY: number;
 
   isDead: boolean = false;
+  wave: number;
 
   constructor(scene: Phaser.Scene, x: number, y: number, wave: number) {
     this.scene = scene;
@@ -36,6 +48,7 @@ export class Ghost {
     this.y = y;
     this.spawnX = x;
     this.spawnY = y;
+    this.wave = wave;
 
     // Scale stats by wave
     const scale = 1 + wave * GAME_CONFIG.difficultyScale;
@@ -43,9 +56,10 @@ export class Ghost {
     this.hp = this.maxHP;
     this.damage = Math.floor(GAME_CONFIG.ghostBaseDamage * scale);
     this.speed = GAME_CONFIG.ghostSpeed;
+    this.chaseSpeed = this.speed * 1.5; // Faster when chasing
 
-    this.idleTargetX = x;
-    this.idleTargetY = y + 100;
+    this.patrolTargetX = x;
+    this.patrolTargetY = y;
 
     this.graphics = scene.add.graphics();
     this.hpBar = scene.add.graphics();
@@ -53,20 +67,23 @@ export class Ghost {
     this.draw();
   }
 
-  update(dt: number, rooms: Room[]): Room | null {
+  update(dt: number, player: Player, rooms: Room[], mapWidth: number, mapHeight: number): Room | null {
     if (this.isDead) return null;
 
     let brokenRoom: Room | null = null;
 
+    // Update path periodically (throttle)
+    this.pathUpdateTimer += dt;
+
     switch (this.state) {
-      case GhostState.IDLE:
-        this.updateIdle(dt, rooms);
+      case GhostState.PATROL:
+        this.updatePatrol(dt, player, rooms, mapWidth, mapHeight);
         break;
-      case GhostState.ATTACK:
-        brokenRoom = this.updateAttack(dt);
+      case GhostState.CHASE:
+        this.updateChase(dt, player);
         break;
-      case GhostState.RETREAT:
-        this.updateRetreat(dt);
+      case GhostState.ATTACK_DOOR:
+        brokenRoom = this.updateAttackDoor(dt, player);
         break;
     }
 
@@ -74,72 +91,147 @@ export class Ghost {
     return brokenRoom;
   }
 
-  private updateIdle(dt: number, rooms: Room[]): void {
-    this.idleTimer += dt;
+  private updatePatrol(dt: number, player: Player, rooms: Room[], mapWidth: number, mapHeight: number): void {
+    // Check for targets every 300ms
+    if (this.pathUpdateTimer >= 0.3) {
+      this.pathUpdateTimer = 0;
 
-    const dx = this.idleTargetX - this.x;
-    const dy = this.idleTargetY - this.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
+      // Priority: Chase moving player
+      if (player.state === PlayerState.MOVING && !player.isInvincible()) {
+        const dist = this.distanceTo(player.x, player.y);
+        if (dist < 400) { // Detection range
+          this.targetPlayer = player;
+          this.state = GhostState.CHASE;
+          return;
+        }
+      }
 
-    if (dist > 10) {
-      this.x += (dx / dist) * this.speed * 0.5 * dt;
-      this.y += (dy / dist) * this.speed * 0.5 * dt;
-    } else {
-      this.idleTargetX = 150 + Math.random() * 150;
-      this.idleTargetY = 200 + Math.random() * 300;
+      // Secondary: Attack room with player or weakest door
+      if (player.state === PlayerState.LYING_DOWN && player.currentRoom) {
+        this.targetRoom = player.currentRoom;
+        this.state = GhostState.ATTACK_DOOR;
+        return;
+      }
+
+      // Find weakest occupied room
+      const occupied = rooms.filter(r => r.ownerId >= 0 && r.doorHP > 0);
+      if (occupied.length > 0) {
+        occupied.sort((a, b) => a.doorHP - b.doorHP);
+        this.targetRoom = occupied[0];
+        this.state = GhostState.ATTACK_DOOR;
+        return;
+      }
     }
 
-    // Start attacking faster (1-2 seconds idle)
-    if (this.idleTimer >= 1 + Math.random()) {
-      const valid = rooms.filter(r => r.ownerId >= 0 && r.doorHP > 0);
-      if (valid.length > 0) {
-        this.targetRoom = valid[Math.floor(Math.random() * valid.length)];
-        this.state = GhostState.ATTACK;
-        this.attackTimer = 0;
+    // Patrol movement
+    const dx = this.patrolTargetX - this.x;
+    const dy = this.patrolTargetY - this.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > 20) {
+      this.x += (dx / dist) * this.speed * 0.6 * dt;
+      this.y += (dy / dist) * this.speed * 0.6 * dt;
+    } else {
+      // Pick new patrol target
+      this.patrolTargetX = 100 + Math.random() * (mapWidth - 200);
+      this.patrolTargetY = 100 + Math.random() * (mapHeight - 200);
+    }
+
+    // Clamp to map
+    this.x = Phaser.Math.Clamp(this.x, 30, mapWidth - 30);
+    this.y = Phaser.Math.Clamp(this.y, 30, mapHeight - 30);
+  }
+
+  private updateChase(dt: number, player: Player): void {
+    // Re-evaluate target every 200ms
+    if (this.pathUpdateTimer >= 0.2) {
+      this.pathUpdateTimer = 0;
+
+      // If player started lying down, switch to attack door
+      if (player.state === PlayerState.LYING_DOWN) {
+        if (player.currentRoom) {
+          this.targetRoom = player.currentRoom;
+          this.state = GhostState.ATTACK_DOOR;
+        } else {
+          this.state = GhostState.PATROL;
+        }
+        this.targetPlayer = null;
+        return;
       }
-      this.idleTimer = 0;
+
+      // If player is invincible, patrol
+      if (player.isInvincible()) {
+        this.state = GhostState.PATROL;
+        this.targetPlayer = null;
+        return;
+      }
+    }
+
+    if (!this.targetPlayer) {
+      this.state = GhostState.PATROL;
+      return;
+    }
+
+    // Chase player directly
+    const dx = this.targetPlayer.x - this.x;
+    const dy = this.targetPlayer.y - this.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > 5) {
+      this.x += (dx / dist) * this.chaseSpeed * dt;
+      this.y += (dy / dist) * this.chaseSpeed * dt;
     }
   }
 
-  private updateAttack(dt: number): Room | null {
+  private updateAttackDoor(dt: number, player: Player): Room | null {
+    // Re-check if player is moving
+    if (this.pathUpdateTimer >= 0.3) {
+      this.pathUpdateTimer = 0;
+
+      if (player.state === PlayerState.MOVING && !player.isInvincible()) {
+        const dist = this.distanceTo(player.x, player.y);
+        if (dist < 300) {
+          this.targetPlayer = player;
+          this.targetRoom = null;
+          this.state = GhostState.CHASE;
+          return null;
+        }
+      }
+    }
+
     if (!this.targetRoom || this.targetRoom.doorHP <= 0) {
-      this.state = GhostState.IDLE;
-      this.idleTimer = 0;
+      this.state = GhostState.PATROL;
       this.targetRoom = null;
       return null;
     }
 
-    // Retreat if low HP
-    if (this.hp / this.maxHP < GAME_CONFIG.retreatThreshold) {
-      this.state = GhostState.RETREAT;
-      return null;
-    }
+    // Move toward door
+    let tx = this.targetRoom.doorX;
+    let ty = this.targetRoom.doorY;
 
-    const room = this.targetRoom;
-    let tx = room.doorX;
-    let ty = room.doorY;
-
-    if (room.layout.doorSide === 'top') ty -= 30;
-    else if (room.layout.doorSide === 'bottom') ty += 30;
-    else if (room.layout.doorSide === 'left') tx -= 30;
-    else if (room.layout.doorSide === 'right') tx += 30;
+    // Stand outside the door
+    const side = this.targetRoom.layout.doorSide;
+    if (side === 'top') ty -= 35;
+    else if (side === 'bottom') ty += 35;
+    else if (side === 'left') tx -= 35;
+    else if (side === 'right') tx += 35;
 
     const dx = tx - this.x;
     const dy = ty - this.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist > 40) {
+    if (dist > 30) {
       this.x += (dx / dist) * this.speed * dt;
       this.y += (dy / dist) * this.speed * dt;
     } else {
+      // Attack door
       this.attackTimer += dt;
       if (this.attackTimer >= GAME_CONFIG.ghostAttackSpeed) {
         this.attackTimer = 0;
         if (this.targetRoom.takeDamage(this.damage)) {
           const broken = this.targetRoom;
           this.targetRoom = null;
-          this.state = GhostState.IDLE;
-          this.idleTimer = 0;
+          this.state = GhostState.PATROL;
           return broken;
         }
       }
@@ -148,22 +240,16 @@ export class Ghost {
     return null;
   }
 
-  private updateRetreat(dt: number): void {
-    const dx = this.spawnX - this.x;
-    const dy = this.spawnY - this.y;
+  // Check collision with player
+  checkPlayerCollision(player: Player): boolean {
+    if (player.state !== PlayerState.MOVING) return false;
+    if (player.isInvincible()) return false;
+
+    const dx = player.x - this.x;
+    const dy = player.y - this.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist > 20) {
-      this.x += (dx / dist) * this.speed * 1.5 * dt;
-      this.y += (dy / dist) * this.speed * 1.5 * dt;
-    } else {
-      this.hp += GAME_CONFIG.healRate * dt;
-      if (this.hp >= this.maxHP * 0.8) {
-        this.hp = Math.min(this.hp, this.maxHP);
-        this.state = GhostState.IDLE;
-        this.idleTimer = 0;
-      }
-    }
+    return dist < 30; // Collision radius
   }
 
   takeDamage(damage: number): boolean {
@@ -175,27 +261,80 @@ export class Ghost {
     return false;
   }
 
+  private distanceTo(x: number, y: number): number {
+    const dx = x - this.x;
+    const dy = y - this.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
   draw(): void {
     const g = this.graphics;
     g.clear();
 
     // Body color based on state
     let color = COLORS.ghostIdle;
-    if (this.state === GhostState.ATTACK) color = COLORS.ghostAttack;
-    else if (this.state === GhostState.RETREAT) color = COLORS.ghostRetreat;
+    let size = 22;
 
-    // Body
+    if (this.state === GhostState.CHASE) {
+      color = COLORS.ghostAttack;
+      size = 25; // Bigger when chasing
+    } else if (this.state === GhostState.ATTACK_DOOR) {
+      color = 0xff6600;
+    }
+
+    // Ghost body
     g.fillStyle(color);
-    g.fillCircle(this.x, this.y, 20);
+    g.fillCircle(this.x, this.y, size);
+
+    // Wavy bottom
+    g.beginPath();
+    g.moveTo(this.x - size, this.y + 5);
+    for (let i = 0; i <= 6; i++) {
+      const wx = this.x - size + (i * size * 2 / 6);
+      const wy = this.y + 5 + (i % 2 === 0 ? 10 : 0);
+      g.lineTo(wx, wy);
+    }
+    g.closePath();
+    g.fillPath();
 
     // Eyes
+    const eyeOffset = this.state === GhostState.CHASE ? 0 : -2;
     g.fillStyle(0xffffff);
-    g.fillCircle(this.x - 6, this.y - 3, 5);
-    g.fillCircle(this.x + 6, this.y - 3, 5);
+    g.fillCircle(this.x - 7, this.y + eyeOffset, 6);
+    g.fillCircle(this.x + 7, this.y + eyeOffset, 6);
 
-    g.fillStyle(0x000000);
-    g.fillCircle(this.x - 6, this.y - 3, 2);
-    g.fillCircle(this.x + 6, this.y - 3, 2);
+    // Pupils (look toward target)
+    let pupilOffX = 0, pupilOffY = 0;
+    if (this.targetPlayer && this.state === GhostState.CHASE) {
+      const angle = Math.atan2(this.targetPlayer.y - this.y, this.targetPlayer.x - this.x);
+      pupilOffX = Math.cos(angle) * 2;
+      pupilOffY = Math.sin(angle) * 2;
+    } else if (this.targetRoom && this.state === GhostState.ATTACK_DOOR) {
+      const angle = Math.atan2(this.targetRoom.doorY - this.y, this.targetRoom.doorX - this.x);
+      pupilOffX = Math.cos(angle) * 2;
+      pupilOffY = Math.sin(angle) * 2;
+    }
+
+    g.fillStyle(this.state === GhostState.CHASE ? 0xff0000 : 0x000000);
+    g.fillCircle(this.x - 7 + pupilOffX, this.y + eyeOffset + pupilOffY, 3);
+    g.fillCircle(this.x + 7 + pupilOffX, this.y + eyeOffset + pupilOffY, 3);
+
+    // Angry eyebrows when chasing
+    if (this.state === GhostState.CHASE) {
+      g.lineStyle(2, 0x000000);
+      g.beginPath();
+      g.moveTo(this.x - 12, this.y - 8);
+      g.lineTo(this.x - 4, this.y - 5);
+      g.moveTo(this.x + 12, this.y - 8);
+      g.lineTo(this.x + 4, this.y - 5);
+      g.strokePath();
+    }
+
+    // Attack indicator
+    if (this.state === GhostState.ATTACK_DOOR && this.attackTimer > GAME_CONFIG.ghostAttackSpeed * 0.7) {
+      g.fillStyle(0xff0000);
+      g.fillCircle(this.x, this.y - 35, 8);
+    }
 
     // HP bar
     this.hpBar.clear();
@@ -203,15 +342,9 @@ export class Ghost {
     const barColor = hpPercent > 0.5 ? COLORS.healthGood : hpPercent > 0.25 ? COLORS.healthMedium : COLORS.healthLow;
 
     this.hpBar.fillStyle(0x333333);
-    this.hpBar.fillRect(this.x - 20, this.y - 35, 40, 6);
+    this.hpBar.fillRect(this.x - 20, this.y - 40, 40, 6);
     this.hpBar.fillStyle(barColor);
-    this.hpBar.fillRect(this.x - 20, this.y - 35, 40 * hpPercent, 6);
-
-    // Attack indicator
-    if (this.state === GhostState.ATTACK && this.attackTimer > GAME_CONFIG.ghostAttackSpeed * 0.7) {
-      g.fillStyle(0xff0000);
-      g.fillCircle(this.x, this.y - 45, 8);
-    }
+    this.hpBar.fillRect(this.x - 20, this.y - 40, 40 * hpPercent, 6);
   }
 
   destroy(): void {

@@ -251,6 +251,15 @@ export class Room {
     this.draw();
   }
 
+  clearOwner(): void {
+    this.ownerId = -1;
+    this.ownerName = '';
+    this.isPlayerRoom = false;
+    this.isResting = false;
+    this.ownerText.setText('');
+    this.draw();
+  }
+
   takeDamage(damage: number): boolean {
     const actual = Math.max(1, damage - this.doorArmor);
     this.doorHP = Math.max(0, this.doorHP - actual);
