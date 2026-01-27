@@ -1,0 +1,12 @@
+{
+  "name": "nightmare-dorm",
+  "displayName": "梦魇宿舍",
+  "version": "1.0.0",
+  "description": "躺平塔防 H5单机版 - Cocos Creator",
+  "author": "LeonTing1010",
+  "main": "",
+  "scripts": {},
+  "dependencies": {},
+  "devDependencies": {},
+  "engineVersion": "3.8.x"
+}

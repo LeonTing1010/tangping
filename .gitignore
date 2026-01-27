@@ -34,3 +34,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Cocos Creator
+/library/
+/local/
+/temp/
+/profiles/
+/native/
+/extensions/
+*.meta
+build/
+settings/
