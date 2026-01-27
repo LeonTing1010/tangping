@@ -159,24 +159,35 @@ export class Room {
 
     // Bed base
     g.fillStyle(0x8B4513);
-    g.fillRect(cell.x - 18, cell.y - 12, 36, 24);
+    g.fillRect(cell.x - 20, cell.y - 14, 40, 28);
     g.fillStyle(0xA0522D);
-    g.fillRect(cell.x - 16, cell.y - 10, 32, 18);
+    g.fillRect(cell.x - 18, cell.y - 12, 36, 22);
+
+    // Pillow
     g.fillStyle(0xD2B48C);
-    g.fillRect(cell.x - 14, cell.y - 8, 14, 14);
+    g.fillRect(cell.x - 16, cell.y - 10, 14, 14);
 
-    // Person sleeping
+    // Person sleeping (bigger and more visible)
     if (this.isResting && this.ownerId >= 0) {
-      g.fillStyle(0xffdbac);
-      g.fillCircle(cell.x - 7, cell.y - 1, 6);
-    }
+      // Body (blanket)
+      g.fillStyle(this.isPlayerRoom ? 0x4CAF50 : 0x2196F3);
+      g.fillRect(cell.x - 2, cell.y - 8, 18, 12);
 
-    // Bed level
-    if (this.bedLevel > 0) {
-      const lvText = this.scene.add.text(cell.x, cell.y + 18, `Lv${this.bedLevel + 1}`, {
-        fontSize: '10px', color: '#4CAF50'
-      }).setOrigin(0.5);
-      this.scene.time.delayedCall(100, () => lvText.destroy());
+      // Head
+      g.fillStyle(0xffdbac);
+      g.fillCircle(cell.x - 8, cell.y - 2, 8);
+
+      // Hair
+      g.fillStyle(0x333333);
+      g.fillCircle(cell.x - 8, cell.y - 5, 6);
+
+      // Zzz effect for player
+      if (this.isPlayerRoom) {
+        g.fillStyle(0xffffff, 0.8);
+        g.fillCircle(cell.x + 10, cell.y - 15, 4);
+        g.fillCircle(cell.x + 16, cell.y - 20, 3);
+        g.fillCircle(cell.x + 20, cell.y - 24, 2);
+      }
     }
   }
 
