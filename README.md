@@ -1,33 +1,30 @@
 # 梦魇宿舍 - 躺平塔防
 
-基于 Cocos Creator 3.x + TypeScript 的躺平塔防 H5 单机游戏。
+基于 Phaser 3 + TypeScript + Vite 的躺平塔防 H5 单机游戏。
 
 ## 项目结构
 
 ```
 tangping/
-├── assets/
-│   ├── scripts/
-│   │   ├── data/              # 数据配置
-│   │   │   ├── GameConfig.ts  # 游戏配置常量
-│   │   │   └── SaveManager.ts # 本地存储管理
-│   │   ├── game/              # 游戏逻辑
-│   │   │   ├── GameManager.ts # 游戏管理器（核心）
-│   │   │   ├── Room.ts        # 房间组件
-│   │   │   ├── Ghost.ts       # 猛鬼AI组件
-│   │   │   ├── AIPlayer.ts    # AI玩家组件
-│   │   │   └── InputHandler.ts # 输入处理
-│   │   ├── ui/                # UI组件
-│   │   │   └── GameUI.ts      # 游戏UI管理
-│   │   └── utils/             # 工具类
-│   │       └── EventManager.ts # 事件管理器
-│   ├── scenes/                # 场景文件 (在IDE中创建)
-│   ├── prefabs/               # 预制体 (在IDE中创建)
-│   ├── resources/             # 动态加载资源
-│   └── textures/              # 纹理资源
-├── project.json               # Cocos Creator 项目配置
+├── src/
+│   ├── config/
+│   │   └── GameConfig.ts     # 游戏配置常量
+│   ├── objects/
+│   │   ├── Room.ts           # 房间类
+│   │   ├── Ghost.ts          # 猛鬼AI类
+│   │   └── AIPlayer.ts       # AI玩家类
+│   ├── scenes/
+│   │   ├── StartScene.ts     # 开始场景
+│   │   ├── GameScene.ts      # 游戏主场景
+│   │   ├── ResultScene.ts    # 结算场景
+│   │   └── TalentScene.ts    # 天赋场景
+│   ├── utils/
+│   │   └── SaveManager.ts    # 本地存储管理
+│   └── main.ts               # 游戏入口
+├── index.html                # HTML入口
 ├── package.json
 ├── tsconfig.json
+├── vite.config.ts
 └── README.md
 ```
 
@@ -60,44 +57,33 @@ tangping/
 
 ## 快速开始
 
-### 1. 安装 Cocos Creator
-下载地址: https://www.cocos.com/creator-download
-推荐版本: 3.8.x
+### 1. 安装依赖
 
-### 2. 打开项目
-1. 启动 Cocos Creator
-2. 点击「打开项目」
-3. 选择本项目根目录 (`tangping/`)
-4. 等待编辑器加载
-
-### 3. 创建主场景
-1. 在 `assets/scenes/` 右键 → 新建 → Scene
-2. 命名为 `MainScene`
-3. 双击打开场景
-
-### 4. 搭建游戏节点
-```
-Canvas (添加 GameManager, InputHandler 组件)
-├── GameUI (添加 GameUI 组件)
-│   ├── StartScreen
-│   ├── GameScreen
-│   └── ResultScreen
-├── RoomContainer (房间父节点)
-├── GhostContainer (猛鬼父节点)
-└── ProjectileContainer (投射物父节点)
+```bash
+npm install
 ```
 
-### 5. 创建预制体
-在 `assets/prefabs/` 创建:
-- `RoomPrefab`: 房间节点，添加 Room 组件
-- `GhostPrefab`: 猛鬼节点，添加 Ghost 组件
-- `ProjectilePrefab`: 投射物节点 (Sprite)
+### 2. 开发模式
 
-### 6. 发布
-菜单 → 项目 → 构建发布
-- Web Mobile: H5网页版
-- 微信小游戏: 需要微信开发者工具
-- 抖音小游戏: 需要抖音开发者工具
+```bash
+npm run dev
+```
+
+浏览器会自动打开 http://localhost:3000
+
+### 3. 构建发布
+
+```bash
+npm run build
+```
+
+构建产物在 `dist/` 目录下，可直接部署到静态服务器。
+
+### 4. 预览构建
+
+```bash
+npm run preview
+```
 
 ## 配置说明
 
@@ -110,19 +96,18 @@ Canvas (添加 GameManager, InputHandler 组件)
 - 房间布局配置
 
 ### SaveManager.ts
-使用 `cc.sys.localStorage` 进行本地存储：
+使用 `localStorage` 进行本地存储：
 ```typescript
-// 获取实例
-const saveManager = SaveManager.getInstance();
+import { SaveManager } from './utils/SaveManager';
 
 // 读取蜜蜂币
-const coins = saveManager.beeCoins;
+const coins = SaveManager.beeCoins;
 
 // 升级天赋
-saveManager.upgradeTalent('startGold');
+SaveManager.upgradeTalent('startGold');
 
 // 记录游戏结果
-saveManager.recordGameResult(survivalTime, kills, beeReward);
+SaveManager.recordGame(survivalTime, kills, beeReward);
 ```
 
 ## 数值公式
@@ -143,6 +128,12 @@ saveManager.recordGameResult(survivalTime, kills, beeReward);
 ```
 实际伤害 = max(1, 猛鬼攻击 - 门护甲)
 ```
+
+## 技术栈
+
+- **Phaser 3**: 游戏框架
+- **TypeScript**: 类型安全
+- **Vite**: 构建工具
 
 ## License
 
