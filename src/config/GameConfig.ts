@@ -12,13 +12,6 @@ export enum GameState {
   VICTORY = 'victory'
 }
 
-// ========== 猛鬼AI状态 ==========
-export enum GhostState {
-  IDLE = 'idle',
-  ATTACK = 'attack',
-  RETREAT = 'retreat'
-}
-
 // ========== 建筑类型 ==========
 export enum BuildingType {
   BED = 'bed',
@@ -102,35 +95,58 @@ export const BUILDING_CONFIGS: Record<string, BuildingConfig> = {
 
 // ========== 游戏配置 ==========
 export const GAME_CONFIG = {
+  // 视口大小 (相机显示区域)
   width: 450,
   height: 800,
+
+  // 地图大小 (实际游戏区域，比视口大)
+  mapWidth: 800,
+  mapHeight: 1200,
+
   gridSize: 50,
 
-  selectionTime: 25,
-  ghostDelay: 5,          // 选房后5秒开始出猛鬼
+  // 玩家配置
+  playerSpeed: 120,
+  playerInvincibleTime: 1.5,
+
+  // 游戏时间
+  ghostDelay: 8,          // 开始后8秒出猛鬼
   survivalTime: 180,
-  ghostSpawnInterval: 12, // 每12秒一波
+  ghostSpawnInterval: 15, // 每15秒一波
   difficultyScale: 0.1,
 
-  ghostBaseHP: 50,
-  ghostBaseDamage: 10,
-  ghostSpeed: 40,
+  // 猛鬼配置
+  ghostBaseHP: 60,
+  ghostBaseDamage: 12,
+  ghostSpeed: 50,
+  ghostChaseSpeed: 75,    // 追击时更快
   ghostAttackSpeed: 1.5,
-  retreatThreshold: 0.2,
-  healRate: 20,
+  ghostDetectionRange: 350,
 
-  killReward: 5,
+  killReward: 8,
   beeRewardRate: 10
 };
 
-// ========== 房间布局 ==========
+// ========== 房间布局 (更大地图) ==========
 export const ROOM_LAYOUTS: RoomLayout[] = [
-  { id: 1, x: 10, y: 80, width: 130, height: 160, gridCols: 2, gridRows: 3, doorSide: 'bottom' },
-  { id: 2, x: 310, y: 80, width: 130, height: 160, gridCols: 2, gridRows: 3, doorSide: 'bottom' },
-  { id: 3, x: 10, y: 360, width: 130, height: 180, gridCols: 2, gridRows: 3, doorSide: 'right' },
-  { id: 4, x: 310, y: 360, width: 130, height: 180, gridCols: 2, gridRows: 3, doorSide: 'left' },
-  { id: 5, x: 10, y: 590, width: 180, height: 120, gridCols: 3, gridRows: 2, doorSide: 'top' },
-  { id: 6, x: 260, y: 590, width: 180, height: 120, gridCols: 3, gridRows: 2, doorSide: 'top' }
+  // 左上区域
+  { id: 1, x: 20, y: 100, width: 140, height: 160, gridCols: 2, gridRows: 3, doorSide: 'right' },
+  { id: 2, x: 20, y: 320, width: 140, height: 160, gridCols: 2, gridRows: 3, doorSide: 'right' },
+
+  // 右上区域
+  { id: 3, x: 640, y: 100, width: 140, height: 160, gridCols: 2, gridRows: 3, doorSide: 'left' },
+  { id: 4, x: 640, y: 320, width: 140, height: 160, gridCols: 2, gridRows: 3, doorSide: 'left' },
+
+  // 中间区域
+  { id: 5, x: 280, y: 200, width: 160, height: 140, gridCols: 3, gridRows: 2, doorSide: 'bottom' },
+  { id: 6, x: 280, y: 480, width: 160, height: 140, gridCols: 3, gridRows: 2, doorSide: 'top' },
+
+  // 下方区域
+  { id: 7, x: 50, y: 700, width: 180, height: 140, gridCols: 3, gridRows: 2, doorSide: 'top' },
+  { id: 8, x: 570, y: 700, width: 180, height: 140, gridCols: 3, gridRows: 2, doorSide: 'top' },
+
+  // 最底部
+  { id: 9, x: 280, y: 950, width: 240, height: 160, gridCols: 4, gridRows: 3, doorSide: 'top' }
 ];
 
 // ========== AI玩家配置 ==========
