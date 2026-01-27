@@ -1,71 +1,83 @@
-/* 躺平发育 - 猛鬼宿舍风格 */
+/* 梦魇宿舍 - 躺平塔防 H5单机版 */
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
+    user-select: none;
 }
 
 body {
     font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
-    background: #1a1a2e;
+    background: #0a0a12;
     min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
     color: #fff;
     overflow: hidden;
-    touch-action: manipulation;
 }
 
 #game-container {
     width: 100%;
-    max-width: 450px;
+    max-width: 500px;
     height: 100vh;
     max-height: 900px;
     position: relative;
-    background: #0d1421;
+    background: linear-gradient(180deg, #1a1a2e 0%, #0a0a12 100%);
+    overflow: hidden;
 }
 
-.hidden {
-    display: none !important;
-}
+.hidden { display: none !important; }
 
-/* Start Screen */
+/* ========== 开始界面 ========== */
 #start-screen {
     height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
-    background: linear-gradient(180deg, #1a2a3a 0%, #0d1421 100%);
+    padding: 30px 20px;
+    overflow-y: auto;
 }
 
 #start-screen h1 {
-    font-size: 2.5rem;
+    text-align: center;
+    font-size: 2.2rem;
     color: #ffd700;
-    text-shadow: 0 0 20px #ffd70066;
-    margin-bottom: 10px;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+    margin-bottom: 5px;
 }
 
-#start-screen .subtitle {
+.subtitle {
+    text-align: center;
     color: #888;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
+}
+
+.start-info {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 15px;
+}
+
+.currency-display {
+    background: rgba(255, 215, 0, 0.1);
+    padding: 8px 20px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 215, 0, 0.3);
 }
 
 .rules {
-    background: rgba(255,255,255,0.05);
-    border-radius: 15px;
-    padding: 20px;
-    margin-bottom: 30px;
-    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
 }
 
 .rules h3 {
     color: #4CAF50;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
+    font-size: 1rem;
 }
 
 .rules ul {
@@ -73,126 +85,182 @@ body {
 }
 
 .rules li {
-    padding: 8px 0;
-    font-size: 0.95rem;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding: 6px 0;
+    font-size: 0.9rem;
+    color: #ccc;
 }
 
-.rules li:last-child {
-    border-bottom: none;
+.talent-section {
+    background: rgba(147, 112, 219, 0.1);
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(147, 112, 219, 0.3);
 }
 
-#start-btn, #restart-btn {
+.talent-section h3 {
+    color: #9370db;
+    margin-bottom: 12px;
+    font-size: 1rem;
+}
+
+.talents {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.talent-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 12px;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.talent-btn:active {
+    transform: scale(0.98);
+    background: rgba(147, 112, 219, 0.2);
+}
+
+.talent-icon { font-size: 1.5rem; }
+.talent-name { flex: 1; text-align: left; }
+.talent-level { color: #9370db; margin-right: 10px; }
+.talent-cost { color: #ffd700; font-size: 0.9rem; }
+
+#start-btn {
     background: linear-gradient(180deg, #4CAF50 0%, #388E3C 100%);
     border: none;
     color: white;
-    padding: 15px 60px;
+    padding: 15px;
     font-size: 1.2rem;
-    border-radius: 30px;
+    border-radius: 25px;
     cursor: pointer;
     box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
-    transition: transform 0.2s;
+    margin-top: auto;
 }
 
-#start-btn:active, #restart-btn:active {
-    transform: scale(0.95);
-}
-
-/* Game Screen */
+/* ========== 游戏界面 ========== */
 #game-screen {
     height: 100%;
     display: flex;
     flex-direction: column;
-    background: #0d1421;
+    position: relative;
 }
 
-/* Top HUD */
 #top-hud {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 15px;
-    background: rgba(0,0,0,0.5);
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.7);
     z-index: 10;
 }
 
 .hud-left {
     display: flex;
-    gap: 15px;
+    gap: 10px;
 }
 
-.gold-display, .energy-display {
+.gold-display, .dps-display {
     display: flex;
     align-items: center;
-    gap: 5px;
-    background: rgba(0,0,0,0.3);
-    padding: 5px 12px;
-    border-radius: 15px;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.9rem;
 }
 
-.coin-icon {
-    font-size: 1.2rem;
-}
+.gold-display { color: #ffd700; }
+.dps-display { color: #ff6b6b; }
 
-.energy-icon {
-    color: #00bcd4;
-}
-
-#gold-amount {
-    color: #ffd700;
+.hud-center {
+    color: #ff6b6b;
     font-weight: bold;
-    min-width: 40px;
-}
-
-#energy-amount {
-    color: #00bcd4;
-    font-weight: bold;
+    font-size: 0.85rem;
 }
 
 #player-icons {
     display: flex;
-    gap: 5px;
+    gap: 4px;
 }
 
 .player-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
     background: #2d3748;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     border: 2px solid transparent;
+    position: relative;
 }
 
-.player-icon.active {
-    border-color: #4CAF50;
+.player-icon.active { border-color: #4CAF50; }
+.player-icon.dead { opacity: 0.3; }
+.player-icon.dead::after {
+    content: '💀';
+    position: absolute;
+    font-size: 0.8rem;
 }
 
-.player-icon.dead {
-    opacity: 0.3;
-    filter: grayscale(1);
-}
-
-/* Game Canvas */
 #game-canvas {
     flex: 1;
     width: 100%;
-    touch-action: none;
 }
 
-/* Shop Panel */
-#shop-panel {
+/* ========== 广播消息 ========== */
+#broadcast-container {
+    position: absolute;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    z-index: 100;
+    pointer-events: none;
+}
+
+.broadcast-msg {
+    background: rgba(244, 67, 54, 0.9);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    animation: broadcastIn 0.3s ease, broadcastOut 0.3s ease 2.7s forwards;
+    white-space: nowrap;
+}
+
+@keyframes broadcastIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes broadcastOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* ========== 建造菜单 ========== */
+#build-menu {
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
-    background: rgba(20, 30, 45, 0.95);
+    background: rgba(20, 25, 35, 0.98);
     border-top-left-radius: 20px;
     border-top-right-radius: 20px;
     padding: 15px;
-    z-index: 100;
+    z-index: 200;
     animation: slideUp 0.3s ease;
 }
 
@@ -201,25 +269,16 @@ body {
     to { transform: translateY(0); }
 }
 
-#shop-content {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-.shop-header {
+.build-header, .upgrade-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+    color: #ffd700;
 }
 
-#shop-title {
-    color: #ff6b6b;
-    font-size: 1.3rem;
-    font-weight: bold;
-}
-
-#close-shop {
+.build-header button, .upgrade-header button {
     background: none;
     border: none;
     color: #888;
@@ -227,132 +286,216 @@ body {
     cursor: pointer;
 }
 
-#shop-item-info {
-    display: flex;
-    gap: 15px;
-    align-items: center;
-    background: rgba(0,0,0,0.2);
-    padding: 10px;
-    border-radius: 10px;
+.build-items {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
 }
 
-#shop-item-icon {
-    width: 60px;
-    height: 60px;
-    background: #2d3748;
-    border-radius: 10px;
+.build-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 12px;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.build-item:active {
+    transform: scale(0.95);
+    background: rgba(76, 175, 80, 0.2);
+}
+
+.build-item .item-icon { font-size: 2rem; }
+.build-item .item-info { text-align: center; }
+.build-item .item-name { font-weight: bold; font-size: 0.9rem; }
+.build-item .item-desc { font-size: 0.75rem; color: #888; }
+.build-item .item-cost { color: #ffd700; font-size: 0.85rem; margin-top: 5px; }
+
+/* ========== 升级面板 ========== */
+#upgrade-panel {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(20, 25, 35, 0.98);
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    padding: 15px;
+    z-index: 200;
+    animation: slideUp 0.3s ease;
+}
+
+#upgrade-content {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.upgrade-icon {
+    width: 70px;
+    height: 70px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2rem;
+    font-size: 2.5rem;
 }
 
-.shop-item-details {
+.upgrade-info {
     flex: 1;
 }
 
-#shop-item-name {
+#upgrade-name {
     font-weight: bold;
+    font-size: 1.1rem;
     margin-bottom: 5px;
 }
 
-#shop-item-desc {
-    color: #888;
-    font-size: 0.85rem;
+#upgrade-desc {
+    color: #4CAF50;
+    font-size: 0.9rem;
+    margin-bottom: 3px;
 }
 
-#shop-buy-btn {
+#upgrade-next {
+    color: #888;
+    font-size: 0.8rem;
+}
+
+#upgrade-btn {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
     background: linear-gradient(180deg, #4CAF50 0%, #388E3C 100%);
     border: none;
     color: white;
     padding: 12px;
-    border-radius: 10px;
-    font-size: 1.1rem;
+    border-radius: 12px;
+    font-size: 1rem;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
 }
 
-#shop-buy-btn:disabled {
+#upgrade-btn:disabled {
     background: #555;
     cursor: not-allowed;
 }
 
-/* Quick Actions */
-#quick-actions {
+.upgrade-cost { color: #ffd700; }
+
+/* ========== 快捷按钮 ========== */
+#quick-buttons {
     position: absolute;
-    left: 10px;
-    top: 50%;
-    transform: translateY(-50%);
+    right: 10px;
+    bottom: 100px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     z-index: 50;
 }
 
-.action-btn {
-    width: 45px;
-    height: 45px;
-    border-radius: 10px;
+.quick-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
     border: none;
-    background: rgba(0,0,0,0.7);
+    background: rgba(0, 0, 0, 0.8);
     font-size: 1.5rem;
     cursor: pointer;
     transition: transform 0.2s;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
-.action-btn:active {
+.quick-btn:active {
     transform: scale(0.9);
 }
 
-/* Result Screen */
+/* ========== 结算界面 ========== */
 #result-screen {
     height: 100%;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: 20px;
-    background: linear-gradient(180deg, #1a2a3a 0%, #0d1421 100%);
+    padding: 30px;
+    text-align: center;
 }
 
 #result-title {
-    font-size: 2.5rem;
-    margin-bottom: 20px;
+    font-size: 2rem;
+    margin-bottom: 15px;
 }
 
 #result-message {
     color: #888;
-    margin-bottom: 30px;
-    text-align: center;
+    margin-bottom: 25px;
 }
 
 #result-stats {
-    background: rgba(255,255,255,0.05);
-    padding: 20px 40px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 20px 30px;
     border-radius: 15px;
-    margin-bottom: 30px;
+    margin-bottom: 25px;
+    width: 100%;
+    max-width: 300px;
 }
 
 #result-stats p {
     padding: 8px 0;
+    display: flex;
+    justify-content: space-between;
 }
 
 #result-stats span {
     color: #ffd700;
-    font-weight: bold;
 }
 
-/* Responsive */
-@media (max-height: 700px) {
-    #game-container {
-        max-height: 100vh;
-    }
+.bee-reward {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 10px;
+    padding-top: 15px !important;
+    color: #ffd700 !important;
+}
 
-    .rules {
-        max-height: 200px;
-        overflow-y: auto;
-    }
+#result-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 280px;
+}
+
+.ad-btn {
+    background: linear-gradient(180deg, #ff9800 0%, #f57c00 100%);
+    border: none;
+    color: white;
+    padding: 12px;
+    border-radius: 25px;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+#restart-btn {
+    background: linear-gradient(180deg, #4CAF50 0%, #388E3C 100%);
+    border: none;
+    color: white;
+    padding: 15px;
+    border-radius: 25px;
+    font-size: 1.1rem;
+    cursor: pointer;
+}
+
+/* ========== 响应式 ========== */
+@media (max-height: 700px) {
+    #start-screen { padding: 15px; }
+    .rules { padding: 10px; }
+    .talent-section { padding: 10px; }
 }
