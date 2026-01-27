@@ -21,11 +21,11 @@ tangping/
 │   │   │   └── GameUI.ts      # 游戏UI管理
 │   │   └── utils/             # 工具类
 │   │       └── EventManager.ts # 事件管理器
-│   ├── scenes/                # 场景文件
-│   ├── prefabs/               # 预制体
+│   ├── scenes/                # 场景文件 (在IDE中创建)
+│   ├── prefabs/               # 预制体 (在IDE中创建)
 │   ├── resources/             # 动态加载资源
 │   └── textures/              # 纹理资源
-├── h5-backup/                 # H5原型版本备份
+├── project.json               # Cocos Creator 项目配置
 ├── package.json
 ├── tsconfig.json
 └── README.md
@@ -58,25 +58,46 @@ tangping/
 - 天赋等级保存
 - 游戏统计记录
 
-## 使用方式
+## 快速开始
 
-### 在 Cocos Creator 中打开
-1. 打开 Cocos Creator 3.8.x
-2. 选择"打开项目"
-3. 选择本项目根目录
+### 1. 安装 Cocos Creator
+下载地址: https://www.cocos.com/creator-download
+推荐版本: 3.8.x
 
-### 创建场景
-1. 新建场景 `MainScene`
-2. 添加 Canvas 节点
-3. 挂载 `GameManager` 组件
-4. 挂载 `GameUI` 组件
-5. 挂载 `InputHandler` 组件
+### 2. 打开项目
+1. 启动 Cocos Creator
+2. 点击「打开项目」
+3. 选择本项目根目录 (`tangping/`)
+4. 等待编辑器加载
 
-### 创建预制体
-需要创建以下预制体：
-- `RoomPrefab`: 房间节点
-- `GhostPrefab`: 猛鬼节点
-- `ProjectilePrefab`: 投射物节点
+### 3. 创建主场景
+1. 在 `assets/scenes/` 右键 → 新建 → Scene
+2. 命名为 `MainScene`
+3. 双击打开场景
+
+### 4. 搭建游戏节点
+```
+Canvas (添加 GameManager, InputHandler 组件)
+├── GameUI (添加 GameUI 组件)
+│   ├── StartScreen
+│   ├── GameScreen
+│   └── ResultScreen
+├── RoomContainer (房间父节点)
+├── GhostContainer (猛鬼父节点)
+└── ProjectileContainer (投射物父节点)
+```
+
+### 5. 创建预制体
+在 `assets/prefabs/` 创建:
+- `RoomPrefab`: 房间节点，添加 Room 组件
+- `GhostPrefab`: 猛鬼节点，添加 Ghost 组件
+- `ProjectilePrefab`: 投射物节点 (Sprite)
+
+### 6. 发布
+菜单 → 项目 → 构建发布
+- Web Mobile: H5网页版
+- 微信小游戏: 需要微信开发者工具
+- 抖音小游戏: 需要抖音开发者工具
 
 ## 配置说明
 
