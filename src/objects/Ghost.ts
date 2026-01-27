@@ -89,7 +89,8 @@ export class Ghost {
       this.idleTargetY = 200 + Math.random() * 300;
     }
 
-    if (this.idleTimer >= 3 + Math.random() * 2) {
+    // Start attacking faster (1-2 seconds idle)
+    if (this.idleTimer >= 1 + Math.random()) {
       const valid = rooms.filter(r => r.ownerId >= 0 && r.doorHP > 0);
       if (valid.length > 0) {
         this.targetRoom = valid[Math.floor(Math.random() * valid.length)];

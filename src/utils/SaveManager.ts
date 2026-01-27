@@ -72,7 +72,8 @@ class SaveManagerClass {
   }
 
   getStartGoldBonus(): number {
-    return this.data.talents.startGold * 5;
+    // Base starting gold (50) + talent bonus
+    return 50 + this.data.talents.startGold * 5;
   }
 
   getDoorHPBonus(): number {

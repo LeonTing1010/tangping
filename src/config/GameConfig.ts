@@ -107,9 +107,9 @@ export const GAME_CONFIG = {
   gridSize: 50,
 
   selectionTime: 25,
-  ghostDelay: 30,
+  ghostDelay: 5,          // 选房后5秒开始出猛鬼
   survivalTime: 180,
-  ghostSpawnInterval: 15,
+  ghostSpawnInterval: 12, // 每12秒一波
   difficultyScale: 0.1,
 
   ghostBaseHP: 50,

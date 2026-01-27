@@ -272,8 +272,9 @@ export class GameScene extends Phaser.Scene {
     const count = 1 + Math.floor(this.wave / 3);
 
     for (let i = 0; i < count; i++) {
-      const x = 150 + Math.random() * 150;
-      const y = -30 - i * 50;
+      // Spawn in middle corridor area (visible)
+      const x = 160 + Math.random() * 130;
+      const y = 260 + Math.random() * 80 + i * 20;  // Corridor center area
       const ghost = new Ghost(this, x, y, this.wave);
       this.ghosts.push(ghost);
     }
