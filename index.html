@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>梦魇宿舍 - 躺平塔防</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0a0a0a;
+      font-family: 'Arial', 'Microsoft YaHei', sans-serif;
+    }
+
+    #game-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #game-container canvas {
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    /* Loading screen */
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #1a2530 0%, #0d1318 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      transition: opacity 0.5s;
+    }
+
+    #loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #loading h1 {
+      color: #ffd700;
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    #loading p {
+      color: #ffffff;
+      font-size: 18px;
+      margin-bottom: 30px;
+    }
+
+    .loader {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #333;
+      border-top-color: #ffd700;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <h1>梦魇宿舍</h1>
+    <p>躺平塔防</p>
+    <div class="loader"></div>
+  </div>
+
+  <div id="game-container"></div>
+
+  <script type="module" src="/src/main.ts"></script>
+  <script>
+    // Hide loading screen when game starts
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        const loading = document.getElementById('loading');
+        if (loading) {
+          loading.classList.add('hidden');
+          setTimeout(() => loading.remove(), 500);
+        }
+      }, 500);
+    });
+  </script>
+</body>
+</html>
