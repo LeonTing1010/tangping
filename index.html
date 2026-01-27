@@ -2,112 +2,77 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>躺平休息 - Hunter Rest Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>躺平发育 - 猛鬼宿舍</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="game-container">
         <div id="start-screen">
-            <h1>🛏️ 躺平休息 🛏️</h1>
-            <p class="subtitle">Hunter Rest Game - 猛鬼宿舍风格</p>
+            <h1>躺平发育</h1>
+            <p class="subtitle">猛鬼宿舍风格</p>
             <div class="rules">
                 <h3>游戏规则</h3>
                 <ul>
-                    <li>🏃 20秒内选择一个空房间作为你的宿舍</li>
-                    <li>🛏️ 点击床躺下休息，自动关门并开始赚金币</li>
-                    <li>👻 30秒后鬼魂出现，会攻击房间的门</li>
-                    <li>🔫 在房间格子上建造炮台防御鬼魂</li>
-                    <li>🚪 升级门增加耐久度，升级床增加金币产出</li>
-                    <li>⏱️ 存活180秒即可获胜！</li>
-                </ul>
-                <h3>操作说明</h3>
-                <ul>
-                    <li>🖱️ 鼠标点击 - 移动/选择房间/点击床休息</li>
-                    <li>E - 进入房间/躺在床上</li>
-                    <li>Q - 起床/离开房间</li>
-                    <li>1-6 - 购买道具</li>
-                    <li>空格 - 快速修门</li>
+                    <li>📱 点击空房间选择你的宿舍</li>
+                    <li>🛏️ 点击床躺平休息赚金币</li>
+                    <li>🌱 在格子上放置产金道具</li>
+                    <li>🚪 升级门来防御鬼魂攻击</li>
+                    <li>👻 鬼魂会攻击门，门破则失败</li>
+                    <li>⏱️ 存活到最后即可获胜</li>
                 </ul>
             </div>
             <button id="start-btn">开始游戏</button>
         </div>
 
         <div id="game-screen" class="hidden">
-            <div id="hud">
-                <div id="timer-container">
-                    <span id="timer-label">存活倒计时</span>
-                    <span id="timer">180</span>
+            <!-- Top HUD -->
+            <div id="top-hud">
+                <div class="hud-left">
+                    <div class="gold-display">
+                        <span class="coin-icon">🪙</span>
+                        <span id="gold-amount">0</span>
+                    </div>
+                    <div class="energy-display">
+                        <span class="energy-icon">⚡</span>
+                        <span id="energy-amount">0</span>
+                    </div>
                 </div>
-                <div id="coins-container">
-                    <span>💰</span>
-                    <span id="coins">0</span>
-                </div>
-                <div id="health-container">
-                    <span>❤️</span>
-                    <span id="health">3</span>
-                </div>
-                <div id="status-container">
-                    <span id="status">选择房间中...</span>
+                <div id="player-icons">
+                    <!-- Player icons will be added dynamically -->
                 </div>
             </div>
 
-            <div id="game-area">
-                <canvas id="game-canvas"></canvas>
+            <!-- Main Game Canvas -->
+            <canvas id="game-canvas"></canvas>
+
+            <!-- Bottom Shop Panel -->
+            <div id="shop-panel" class="hidden">
+                <div id="shop-content">
+                    <div class="shop-header">
+                        <span id="shop-title">升级</span>
+                        <button id="close-shop">✕</button>
+                    </div>
+                    <div id="shop-item-info">
+                        <img id="shop-item-icon" src="" alt="">
+                        <div class="shop-item-details">
+                            <div id="shop-item-name">物品名称</div>
+                            <div id="shop-item-desc">描述信息</div>
+                        </div>
+                    </div>
+                    <button id="shop-buy-btn">
+                        <span class="coin-icon">🪙</span>
+                        <span id="shop-cost">50</span>
+                    </button>
+                </div>
             </div>
 
-            <div id="bottom-panel">
-                <div id="shop-panel">
-                    <h3>🛒 商店 (数字键购买)</h3>
-                    <div class="shop-items">
-                        <div class="shop-item" data-item="door">
-                            <span class="item-key">[1]</span>
-                            <span class="item-icon">🚪</span>
-                            <span class="item-name">升级门</span>
-                            <span class="item-cost" id="door-cost">20</span>💰
-                            <span class="item-level">Lv.<span id="door-level">1</span></span>
-                        </div>
-                        <div class="shop-item" data-item="bed">
-                            <span class="item-key">[2]</span>
-                            <span class="item-icon">🛏️</span>
-                            <span class="item-name">升级床</span>
-                            <span class="item-cost" id="bed-cost">30</span>💰
-                            <span class="item-level">Lv.<span id="bed-level">1</span></span>
-                        </div>
-                        <div class="shop-item" data-item="turret">
-                            <span class="item-key">[3]</span>
-                            <span class="item-icon">🔫</span>
-                            <span class="item-name">炮台</span>
-                            <span class="item-cost" id="turret-cost">50</span>💰
-                        </div>
-                        <div class="shop-item" data-item="repair">
-                            <span class="item-key">[4]</span>
-                            <span class="item-icon">🔧</span>
-                            <span class="item-name">修门</span>
-                            <span class="item-cost">15</span>💰
-                        </div>
-                        <div class="shop-item" data-item="trap">
-                            <span class="item-key">[5]</span>
-                            <span class="item-icon">🪤</span>
-                            <span class="item-name">陷阱</span>
-                            <span class="item-cost">40</span>💰
-                        </div>
-                        <div class="shop-item" data-item="blindbox">
-                            <span class="item-key">[6]</span>
-                            <span class="item-icon">🎁</span>
-                            <span class="item-name">盲盒</span>
-                            <span class="item-cost">25</span>💰
-                        </div>
-                    </div>
-                </div>
-
-                <div id="ghost-status">
-                    <h3>👻 鬼魂状态</h3>
-                    <div class="ghost-info">
-                        <span>等级: Lv.<span id="ghost-level">1</span></span>
-                        <span>数量: <span id="ghost-count">0</span></span>
-                    </div>
-                </div>
+            <!-- Quick Actions -->
+            <div id="quick-actions">
+                <button class="action-btn" data-action="bed" title="升级床">🛏️</button>
+                <button class="action-btn" data-action="door" title="升级门">🚪</button>
+                <button class="action-btn" data-action="plant" title="买绿植">🌱</button>
+                <button class="action-btn" data-action="turret" title="买炮台">🔫</button>
             </div>
         </div>
 
