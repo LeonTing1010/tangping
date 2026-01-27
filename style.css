@@ -14,13 +14,14 @@ body {
     justify-content: center;
     align-items: center;
     color: #fff;
+    overflow: hidden;
 }
 
 #game-container {
     position: relative;
     width: 100%;
-    max-width: 1200px;
-    padding: 20px;
+    max-width: 1100px;
+    padding: 10px;
 }
 
 .hidden {
@@ -30,37 +31,40 @@ body {
 /* Start Screen */
 #start-screen {
     text-align: center;
-    padding: 40px;
-    background: rgba(0, 0, 0, 0.5);
+    padding: 30px;
+    background: rgba(0, 0, 0, 0.6);
     border-radius: 20px;
     border: 2px solid #4CAF50;
     box-shadow: 0 0 30px rgba(76, 175, 80, 0.3);
 }
 
 #start-screen h1 {
-    font-size: 3rem;
-    margin-bottom: 10px;
+    font-size: 2.5rem;
+    margin-bottom: 5px;
     text-shadow: 0 0 20px #4CAF50;
 }
 
 #start-screen .subtitle {
-    font-size: 1.2rem;
+    font-size: 1rem;
     color: #888;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
 }
 
 .rules {
     text-align: left;
     background: rgba(255, 255, 255, 0.05);
-    padding: 20px 30px;
+    padding: 15px 25px;
     border-radius: 10px;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
+    max-height: 300px;
+    overflow-y: auto;
 }
 
 .rules h3 {
     color: #4CAF50;
-    margin-bottom: 15px;
-    margin-top: 15px;
+    margin-bottom: 10px;
+    margin-top: 10px;
+    font-size: 1rem;
 }
 
 .rules h3:first-child {
@@ -69,21 +73,21 @@ body {
 
 .rules ul {
     list-style: none;
-    padding-left: 10px;
+    padding-left: 5px;
 }
 
 .rules li {
-    margin: 10px 0;
-    font-size: 0.95rem;
-    line-height: 1.5;
+    margin: 8px 0;
+    font-size: 0.9rem;
+    line-height: 1.4;
 }
 
 #start-btn, #restart-btn {
     background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
     color: white;
     border: none;
-    padding: 15px 50px;
-    font-size: 1.3rem;
+    padding: 12px 40px;
+    font-size: 1.2rem;
     border-radius: 50px;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -101,7 +105,7 @@ body {
 #game-screen {
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 10px;
 }
 
 #hud {
@@ -109,110 +113,124 @@ body {
     justify-content: space-between;
     align-items: center;
     background: rgba(0, 0, 0, 0.7);
-    padding: 15px 25px;
-    border-radius: 15px;
+    padding: 10px 20px;
+    border-radius: 10px;
     border: 1px solid #333;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 #hud > div {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 #timer-container {
     background: linear-gradient(135deg, #e91e63 0%, #c2185b 100%);
-    padding: 8px 20px;
-    border-radius: 25px;
+    padding: 6px 15px;
+    border-radius: 20px;
 }
 
 #timer-label {
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     margin-right: 5px;
 }
 
 #timer {
-    font-size: 1.5rem;
+    font-size: 1.3rem;
     font-weight: bold;
-    min-width: 40px;
+    min-width: 35px;
     text-align: center;
 }
 
 #coins-container {
     background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
-    padding: 8px 20px;
-    border-radius: 25px;
+    padding: 6px 15px;
+    border-radius: 20px;
     color: #000;
     font-weight: bold;
 }
 
 #coins {
-    font-size: 1.3rem;
-    min-width: 50px;
+    font-size: 1.2rem;
+    min-width: 45px;
     text-align: center;
 }
 
 #health-container {
     background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
-    padding: 8px 20px;
-    border-radius: 25px;
+    padding: 6px 15px;
+    border-radius: 20px;
 }
 
 #health {
-    font-size: 1.3rem;
+    font-size: 1.2rem;
     font-weight: bold;
 }
 
 #status-container {
     background: rgba(255, 255, 255, 0.1);
-    padding: 8px 20px;
-    border-radius: 25px;
-    min-width: 200px;
+    padding: 6px 15px;
+    border-radius: 20px;
+    min-width: 180px;
     text-align: center;
 }
 
 #status {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
 }
 
-/* Canvas */
+/* Game Area */
+#game-area {
+    display: flex;
+    justify-content: center;
+}
+
 #game-canvas {
-    border-radius: 15px;
-    border: 3px solid #333;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-    display: block;
-    margin: 0 auto;
+    border-radius: 10px;
+    border: 2px solid #333;
+    box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
 }
 
-/* Shop Panel */
+/* Bottom Panel */
+#bottom-panel {
+    display: flex;
+    gap: 10px;
+}
+
 #shop-panel {
+    flex: 1;
     background: rgba(0, 0, 0, 0.7);
-    padding: 15px 20px;
-    border-radius: 15px;
+    padding: 10px 15px;
+    border-radius: 10px;
     border: 1px solid #333;
 }
 
 #shop-panel h3 {
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     color: #ffc107;
+    font-size: 0.9rem;
 }
 
 .shop-items {
     display: flex;
-    gap: 15px;
+    gap: 8px;
     flex-wrap: wrap;
 }
 
 .shop-item {
     background: rgba(255, 255, 255, 0.05);
-    padding: 12px 18px;
-    border-radius: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
     cursor: pointer;
     transition: all 0.2s ease;
     border: 1px solid transparent;
+    font-size: 0.85rem;
 }
 
 .shop-item:hover {
@@ -223,10 +241,14 @@ body {
 
 .item-key {
     background: #333;
-    padding: 4px 8px;
-    border-radius: 5px;
+    padding: 2px 6px;
+    border-radius: 4px;
     font-family: monospace;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
+}
+
+.item-icon {
+    font-size: 1.1rem;
 }
 
 .item-name {
@@ -240,85 +262,66 @@ body {
 
 .item-level {
     color: #888;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
 }
 
-/* Hunter Status */
-#hunter-status {
-    background: rgba(244, 67, 54, 0.2);
-    padding: 15px 20px;
-    border-radius: 15px;
-    border: 1px solid #f44336;
-}
-
-#hunter-status h3 {
-    margin-bottom: 10px;
-    color: #f44336;
-}
-
-.hunter-health {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-}
-
-#hunter-health-bar {
-    flex: 1;
-    max-width: 200px;
-    height: 20px;
-    background: #333;
+/* Ghost Status */
+#ghost-status {
+    background: rgba(155, 89, 182, 0.2);
+    padding: 10px 15px;
     border-radius: 10px;
-    overflow: hidden;
+    border: 1px solid #9b59b6;
+    min-width: 150px;
 }
 
-#hunter-health-fill {
-    height: 100%;
-    width: 100%;
-    background: linear-gradient(90deg, #f44336, #ff5722);
-    transition: width 0.3s ease;
-}
-
-#hunter-health-text {
-    min-width: 50px;
-}
-
-#hunter-location {
-    color: #888;
+#ghost-status h3 {
+    margin-bottom: 8px;
+    color: #9b59b6;
     font-size: 0.9rem;
+}
+
+.ghost-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.85rem;
+}
+
+.ghost-info span {
+    color: #ddd;
 }
 
 /* Result Screen */
 #result-screen {
     text-align: center;
-    padding: 50px;
+    padding: 40px;
     background: rgba(0, 0, 0, 0.8);
     border-radius: 20px;
     border: 2px solid #333;
 }
 
 #result-title {
-    font-size: 3rem;
-    margin-bottom: 20px;
+    font-size: 2.5rem;
+    margin-bottom: 15px;
 }
 
 #result-message {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     color: #888;
-    margin-bottom: 30px;
+    margin-bottom: 25px;
 }
 
 #result-stats {
     background: rgba(255, 255, 255, 0.05);
-    padding: 20px 40px;
+    padding: 15px 30px;
     border-radius: 10px;
     display: inline-block;
-    margin-bottom: 30px;
+    margin-bottom: 25px;
 }
 
 #result-stats p {
-    margin: 10px 0;
-    font-size: 1.1rem;
+    margin: 8px 0;
+    font-size: 1rem;
 }
 
 #result-stats span {
@@ -327,14 +330,13 @@ body {
 }
 
 /* Responsive */
-@media (max-width: 900px) {
-    #hud {
-        flex-wrap: wrap;
-        gap: 10px;
+@media (max-width: 1000px) {
+    #bottom-panel {
+        flex-direction: column;
     }
 
     .shop-items {
-        flex-direction: column;
+        justify-content: center;
     }
 
     #game-canvas {
@@ -351,8 +353,13 @@ body {
 
 @keyframes shake {
     0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-5px); }
-    75% { transform: translateX(5px); }
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
 }
 
 .warning {
@@ -361,4 +368,22 @@ body {
 
 .damage {
     animation: shake 0.3s;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a1a2e;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #4CAF50;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #45a049;
 }

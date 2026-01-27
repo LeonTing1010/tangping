@@ -10,23 +10,24 @@
     <div id="game-container">
         <div id="start-screen">
             <h1>🛏️ 躺平休息 🛏️</h1>
-            <p class="subtitle">Hunter Rest Game</p>
+            <p class="subtitle">Hunter Rest Game - 猛鬼宿舍风格</p>
             <div class="rules">
                 <h3>游戏规则</h3>
                 <ul>
-                    <li>🏃 30秒内找到房间并躺在床上</li>
-                    <li>💰 躺平时会产生金币</li>
-                    <li>🚪 用金币升级门来防御猎梦者</li>
-                    <li>🛏️ 升级床可以产生更多金币</li>
-                    <li>⚔️ 购买武器反击猎梦者</li>
-                    <li>👹 猎梦者进入房间会抓躺平者</li>
+                    <li>🏃 20秒内选择一个空房间作为你的宿舍</li>
+                    <li>🛏️ 点击床躺下休息，自动关门并开始赚金币</li>
+                    <li>👻 30秒后鬼魂出现，会攻击房间的门</li>
+                    <li>🔫 在房间格子上建造炮台防御鬼魂</li>
+                    <li>🚪 升级门增加耐久度，升级床增加金币产出</li>
+                    <li>⏱️ 存活180秒即可获胜！</li>
                 </ul>
                 <h3>操作说明</h3>
                 <ul>
-                    <li>WASD / 方向键 - 移动</li>
-                    <li>E - 进入房间 / 躺在床上</li>
-                    <li>Q - 离开床 / 离开房间</li>
-                    <li>1-4 - 购买/使用物品</li>
+                    <li>🖱️ 鼠标点击 - 移动/选择房间/点击床休息</li>
+                    <li>E - 进入房间/躺在床上</li>
+                    <li>Q - 起床/离开房间</li>
+                    <li>1-6 - 购买道具</li>
+                    <li>空格 - 快速修门</li>
                 </ul>
             </div>
             <button id="start-btn">开始游戏</button>
@@ -35,8 +36,8 @@
         <div id="game-screen" class="hidden">
             <div id="hud">
                 <div id="timer-container">
-                    <span id="timer-label">寻找房间</span>
-                    <span id="timer">30</span>
+                    <span id="timer-label">存活倒计时</span>
+                    <span id="timer">180</span>
                 </div>
                 <div id="coins-container">
                     <span>💰</span>
@@ -47,52 +48,66 @@
                     <span id="health">3</span>
                 </div>
                 <div id="status-container">
-                    <span id="status">探索中...</span>
+                    <span id="status">选择房间中...</span>
                 </div>
             </div>
 
-            <canvas id="game-canvas"></canvas>
-
-            <div id="shop-panel">
-                <h3>🛒 商店</h3>
-                <div class="shop-items">
-                    <div class="shop-item" data-item="door">
-                        <span class="item-key">[1]</span>
-                        <span class="item-name">🚪 升级门</span>
-                        <span class="item-cost" id="door-cost">10</span>💰
-                        <span class="item-level">Lv.<span id="door-level">1</span></span>
-                    </div>
-                    <div class="shop-item" data-item="bed">
-                        <span class="item-key">[2]</span>
-                        <span class="item-name">🛏️ 升级床</span>
-                        <span class="item-cost" id="bed-cost">15</span>💰
-                        <span class="item-level">Lv.<span id="bed-level">1</span></span>
-                    </div>
-                    <div class="shop-item" data-item="weapon">
-                        <span class="item-key">[3]</span>
-                        <span class="item-name">⚔️ 购买武器</span>
-                        <span class="item-cost" id="weapon-cost">20</span>💰
-                        <span class="item-level">x<span id="weapon-count">0</span></span>
-                    </div>
-                    <div class="shop-item" data-item="trap">
-                        <span class="item-key">[4]</span>
-                        <span class="item-name">🪤 购买陷阱</span>
-                        <span class="item-cost" id="trap-cost">25</span>💰
-                        <span class="item-level">x<span id="trap-count">0</span></span>
-                    </div>
-                </div>
+            <div id="game-area">
+                <canvas id="game-canvas"></canvas>
             </div>
 
-            <div id="hunter-status">
-                <h3>👹 猎梦者</h3>
-                <div class="hunter-health">
-                    <span>生命值:</span>
-                    <div id="hunter-health-bar">
-                        <div id="hunter-health-fill"></div>
+            <div id="bottom-panel">
+                <div id="shop-panel">
+                    <h3>🛒 商店 (数字键购买)</h3>
+                    <div class="shop-items">
+                        <div class="shop-item" data-item="door">
+                            <span class="item-key">[1]</span>
+                            <span class="item-icon">🚪</span>
+                            <span class="item-name">升级门</span>
+                            <span class="item-cost" id="door-cost">20</span>💰
+                            <span class="item-level">Lv.<span id="door-level">1</span></span>
+                        </div>
+                        <div class="shop-item" data-item="bed">
+                            <span class="item-key">[2]</span>
+                            <span class="item-icon">🛏️</span>
+                            <span class="item-name">升级床</span>
+                            <span class="item-cost" id="bed-cost">30</span>💰
+                            <span class="item-level">Lv.<span id="bed-level">1</span></span>
+                        </div>
+                        <div class="shop-item" data-item="turret">
+                            <span class="item-key">[3]</span>
+                            <span class="item-icon">🔫</span>
+                            <span class="item-name">炮台</span>
+                            <span class="item-cost" id="turret-cost">50</span>💰
+                        </div>
+                        <div class="shop-item" data-item="repair">
+                            <span class="item-key">[4]</span>
+                            <span class="item-icon">🔧</span>
+                            <span class="item-name">修门</span>
+                            <span class="item-cost">15</span>💰
+                        </div>
+                        <div class="shop-item" data-item="trap">
+                            <span class="item-key">[5]</span>
+                            <span class="item-icon">🪤</span>
+                            <span class="item-name">陷阱</span>
+                            <span class="item-cost">40</span>💰
+                        </div>
+                        <div class="shop-item" data-item="blindbox">
+                            <span class="item-key">[6]</span>
+                            <span class="item-icon">🎁</span>
+                            <span class="item-name">盲盒</span>
+                            <span class="item-cost">25</span>💰
+                        </div>
                     </div>
-                    <span id="hunter-health-text">5/5</span>
                 </div>
-                <div id="hunter-location">位置: 探索中</div>
+
+                <div id="ghost-status">
+                    <h3>👻 鬼魂状态</h3>
+                    <div class="ghost-info">
+                        <span>等级: Lv.<span id="ghost-level">1</span></span>
+                        <span>数量: <span id="ghost-count">0</span></span>
+                    </div>
+                </div>
             </div>
         </div>
 
