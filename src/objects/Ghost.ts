@@ -111,8 +111,8 @@ export class Ghost extends Phaser.Physics.Arcade.Sprite {
     let nearestDoor: Phaser.Physics.Arcade.Sprite | null = null;
     let minDist = Infinity;
 
-    doors.getChildren().forEach((d) => {
-      const door = d as Phaser.Physics.Arcade.Sprite;
+    const doorChildren = doors.getChildren() as Phaser.Physics.Arcade.Sprite[];
+    for (const door of doorChildren) {
       if (door.getData('closed')) {
         const dist = Phaser.Math.Distance.Between(this.x, this.y, door.x, door.y);
         if (dist < minDist) {
@@ -120,10 +120,10 @@ export class Ghost extends Phaser.Physics.Arcade.Sprite {
           nearestDoor = door;
         }
       }
-    });
+    }
 
-    if (nearestDoor) {
-      const room = nearestDoor.getData('room') as Room;
+    if (nearestDoor !== null) {
+      const room = (nearestDoor as Phaser.Physics.Arcade.Sprite).getData('room') as Room;
       this.targetRoom = room;
       this.ghostState = GhostState.ATTACK_DOOR;
       this.targetPlayer = null;
