@@ -25,6 +25,12 @@ export class GameScene extends Phaser.Scene {
   rooms: Room[] = [];
   ghostSpawned: boolean = false;
 
+  // Camera drag
+  isDragging: boolean = false;
+  dragStartX: number = 0;
+  dragStartY: number = 0;
+  cameraFollowEnabled: boolean = true;
+
   wave: number = 0;
   kills: number = 0;
   gameTimer: number = 0;
@@ -164,8 +170,10 @@ export class GameScene extends Phaser.Scene {
     // Create UI
     this.createUI();
 
-    // Input handling - click to move
+    // Input handling - click to move, drag to pan camera
     this.input.on('pointerdown', this.handlePointerDown, this);
+    this.input.on('pointermove', this.handlePointerMove, this);
+    this.input.on('pointerup', this.handlePointerUp, this);
   }
 
   private createBackground(): void {
@@ -349,6 +357,55 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handlePointerDown(pointer: Phaser.Input.Pointer): void {
+    // Record drag start position
+    this.isDragging = false;
+    this.dragStartX = pointer.x;
+    this.dragStartY = pointer.y;
+  }
+
+  private handlePointerMove(pointer: Phaser.Input.Pointer): void {
+    if (!pointer.isDown) return;
+
+    const dx = pointer.x - this.dragStartX;
+    const dy = pointer.y - this.dragStartY;
+    const dragDistance = Math.sqrt(dx * dx + dy * dy);
+
+    // If moved more than 10 pixels, consider it a drag
+    if (dragDistance > 10) {
+      this.isDragging = true;
+
+      // Disable camera follow while dragging
+      if (this.cameraFollowEnabled) {
+        this.cameras.main.stopFollow();
+        this.cameraFollowEnabled = false;
+      }
+
+      // Pan camera (invert direction for natural feel)
+      const cam = this.cameras.main;
+      cam.scrollX -= (pointer.x - pointer.prevPosition.x) / cam.zoom;
+      cam.scrollY -= (pointer.y - pointer.prevPosition.y) / cam.zoom;
+
+      // Clamp camera to bounds
+      cam.scrollX = Phaser.Math.Clamp(cam.scrollX, 0, this.mapWidth - cam.width / cam.zoom);
+      cam.scrollY = Phaser.Math.Clamp(cam.scrollY, 0, this.mapHeight - cam.height / cam.zoom);
+    }
+  }
+
+  private handlePointerUp(pointer: Phaser.Input.Pointer): void {
+    // If it was a drag, re-enable camera follow after a delay
+    if (this.isDragging) {
+      // Short delay before re-enabling follow
+      this.time.delayedCall(2000, () => {
+        if (!this.cameraFollowEnabled) {
+          this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+          this.cameraFollowEnabled = true;
+        }
+      });
+      this.isDragging = false;
+      return;
+    }
+
+    // It was a click, not a drag - handle click actions
     if (this.gameState !== GameState.PLAYING) return;
 
     // Don't move if clicking UI area
