@@ -1,5 +1,5 @@
 /**
- * 房间类
+ * 房间类 - 带物理墙壁和门
  */
 
 import Phaser from 'phaser';
@@ -22,16 +22,25 @@ export interface Building {
   config: BuildingConfig;
   level: number;
   attackTimer: number;
-  graphics?: Phaser.GameObjects.Graphics;
+  sprite?: Phaser.GameObjects.Sprite;
 }
+
+const WALL_SIZE = 16;
 
 export class Room {
   scene: Phaser.Scene;
   layout: RoomLayout;
-  graphics: Phaser.GameObjects.Graphics;
-  doorGraphics: Phaser.GameObjects.Graphics;
+
+  // Graphics
+  floorGraphics: Phaser.GameObjects.Graphics;
   ownerText: Phaser.GameObjects.Text;
 
+  // Physics objects
+  wallSprites: Phaser.Physics.Arcade.Sprite[] = [];
+  door!: Phaser.Physics.Arcade.Sprite;
+  bedSprite!: Phaser.Physics.Arcade.Sprite;
+
+  // State
   ownerId: number = -1;
   ownerName: string = '';
   isPlayerRoom: boolean = false;
@@ -42,15 +51,25 @@ export class Room {
   doorArmor: number = 0;
   doorX: number = 0;
   doorY: number = 0;
+  doorClosed: boolean = false;
+  doorUnderAttack: boolean = false;
 
   bedLevel: number = 0;
+  bedX: number = 0;
+  bedY: number = 0;
   isResting: boolean = false;
 
   grid: GridCell[] = [];
   buildings: Building[] = [];
   turrets: Building[] = [];
 
-  constructor(scene: Phaser.Scene, layout: RoomLayout) {
+  constructor(
+    scene: Phaser.Scene,
+    layout: RoomLayout,
+    wallGroup: Phaser.Physics.Arcade.StaticGroup,
+    doorGroup: Phaser.Physics.Arcade.Group,
+    bedGroup: Phaser.Physics.Arcade.StaticGroup
+  ) {
     this.scene = scene;
     this.layout = layout;
 
@@ -58,34 +77,20 @@ export class Room {
     this.doorMaxHP = DOOR_CONFIGS[0].hp + bonusHP;
     this.doorHP = this.doorMaxHP;
 
-    this.graphics = scene.add.graphics();
-    this.doorGraphics = scene.add.graphics();
+    this.floorGraphics = scene.add.graphics();
     this.ownerText = scene.add.text(
       layout.x + layout.width / 2,
-      layout.y + layout.height - 10,
+      layout.y + layout.height + 15,
       '',
-      { fontSize: '12px', color: '#ffffff' }
-    ).setOrigin(0.5);
+      { fontSize: '11px', color: '#ffffff', backgroundColor: '#000000aa' }
+    ).setOrigin(0.5).setDepth(5);
 
-    this.initGrid();
     this.calcDoorPos();
-    this.draw();
-  }
-
-  private initGrid(): void {
-    const { x, y, gridCols, gridRows } = this.layout;
-    const size = GAME_CONFIG.gridSize;
-
-    for (let row = 0; row < gridRows; row++) {
-      for (let col = 0; col < gridCols; col++) {
-        this.grid.push({
-          col, row,
-          x: x + 15 + col * size + size / 2,
-          y: y + 15 + row * size + size / 2,
-          building: null
-        });
-      }
-    }
+    this.initGrid();
+    this.createWalls(wallGroup);
+    this.createDoor(doorGroup);
+    this.createBed(bedGroup);
+    this.drawFloor();
   }
 
   private calcDoorPos(): void {
@@ -98,148 +103,170 @@ export class Room {
     }
   }
 
-  draw(): void {
-    const g = this.graphics;
+  private initGrid(): void {
     const { x, y, width, height } = this.layout;
-    const size = GAME_CONFIG.gridSize;
+    const innerX = x + WALL_SIZE;
+    const innerY = y + WALL_SIZE;
+    const innerW = width - WALL_SIZE * 2;
+    const innerH = height - WALL_SIZE * 2;
+    const cellSize = 40;
+
+    const cols = Math.floor(innerW / cellSize);
+    const rows = Math.floor(innerH / cellSize);
+
+    // Bed position (center of room)
+    this.bedX = x + width / 2;
+    this.bedY = y + height / 2;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const cellX = innerX + col * cellSize + cellSize / 2;
+        const cellY = innerY + row * cellSize + cellSize / 2;
+
+        // Skip bed position
+        if (Math.abs(cellX - this.bedX) < cellSize && Math.abs(cellY - this.bedY) < cellSize) {
+          continue;
+        }
+
+        this.grid.push({
+          col, row,
+          x: cellX,
+          y: cellY,
+          building: null
+        });
+      }
+    }
+  }
+
+  private createWalls(wallGroup: Phaser.Physics.Arcade.StaticGroup): void {
+    const { x, y, width, height, doorSide } = this.layout;
+
+    // Create walls around the room perimeter
+    // Top wall
+    for (let wx = x; wx < x + width; wx += WALL_SIZE) {
+      if (doorSide === 'top' && Math.abs(wx - this.doorX) < 25) continue;
+      const wall = wallGroup.create(wx + WALL_SIZE / 2, y + WALL_SIZE / 2, 'wall');
+      wall.setDisplaySize(WALL_SIZE, WALL_SIZE).refreshBody();
+      this.wallSprites.push(wall);
+    }
+
+    // Bottom wall
+    for (let wx = x; wx < x + width; wx += WALL_SIZE) {
+      if (doorSide === 'bottom' && Math.abs(wx - this.doorX) < 25) continue;
+      const wall = wallGroup.create(wx + WALL_SIZE / 2, y + height - WALL_SIZE / 2, 'wall');
+      wall.setDisplaySize(WALL_SIZE, WALL_SIZE).refreshBody();
+      this.wallSprites.push(wall);
+    }
+
+    // Left wall
+    for (let wy = y + WALL_SIZE; wy < y + height - WALL_SIZE; wy += WALL_SIZE) {
+      if (doorSide === 'left' && Math.abs(wy - this.doorY) < 25) continue;
+      const wall = wallGroup.create(x + WALL_SIZE / 2, wy + WALL_SIZE / 2, 'wall');
+      wall.setDisplaySize(WALL_SIZE, WALL_SIZE).refreshBody();
+      this.wallSprites.push(wall);
+    }
+
+    // Right wall
+    for (let wy = y + WALL_SIZE; wy < y + height - WALL_SIZE; wy += WALL_SIZE) {
+      if (doorSide === 'right' && Math.abs(wy - this.doorY) < 25) continue;
+      const wall = wallGroup.create(x + width - WALL_SIZE / 2, wy + WALL_SIZE / 2, 'wall');
+      wall.setDisplaySize(WALL_SIZE, WALL_SIZE).refreshBody();
+      this.wallSprites.push(wall);
+    }
+  }
+
+  private createDoor(doorGroup: Phaser.Physics.Arcade.Group): void {
+    const { doorSide } = this.layout;
+    const isHorizontal = doorSide === 'top' || doorSide === 'bottom';
+
+    this.door = doorGroup.create(this.doorX, this.doorY, isHorizontal ? 'door_h' : 'door_v');
+    this.door.setImmovable(true);
+
+    if (isHorizontal) {
+      this.door.setDisplaySize(50, 12);
+      this.door.body?.setSize(50, 12);
+    } else {
+      this.door.setDisplaySize(12, 50);
+      this.door.body?.setSize(12, 50);
+    }
+
+    // Store reference to this room on the door
+    this.door.setData('room', this);
+    this.door.setData('closed', false);
+    this.door.setData('hp', this.doorHP);
+    this.door.setData('maxHp', this.doorMaxHP);
+  }
+
+  private createBed(bedGroup: Phaser.Physics.Arcade.StaticGroup): void {
+    this.bedSprite = bedGroup.create(this.bedX, this.bedY, 'bed') as Phaser.Physics.Arcade.Sprite;
+    this.bedSprite.setDisplaySize(40, 30);
+    this.bedSprite.setData('room', this);
+    this.bedSprite.refreshBody();
+  }
+
+  private drawFloor(): void {
+    const g = this.floorGraphics;
+    const { x, y, width, height } = this.layout;
 
     g.clear();
 
-    // Floor
-    g.fillStyle(COLORS.floor);
-    g.fillRect(x, y, width, height);
+    // Room floor
+    g.fillStyle(COLORS.floor, 1);
+    g.fillRect(x + WALL_SIZE, y + WALL_SIZE, width - WALL_SIZE * 2, height - WALL_SIZE * 2);
 
-    // Checkered pattern
-    g.fillStyle(COLORS.floorLight);
-    for (let r = 0; r < Math.ceil(height / size); r++) {
-      for (let c = 0; c < Math.ceil(width / size); c++) {
-        if ((r + c) % 2 === 0) {
-          g.fillRect(x + c * size, y + r * size, size, size);
+    // Floor pattern
+    g.fillStyle(COLORS.floorLight, 0.3);
+    for (let py = y + WALL_SIZE; py < y + height - WALL_SIZE; py += 20) {
+      for (let px = x + WALL_SIZE; px < x + width - WALL_SIZE; px += 20) {
+        if ((Math.floor((px - x) / 20) + Math.floor((py - y) / 20)) % 2 === 0) {
+          g.fillRect(px, py, 20, 20);
         }
       }
     }
 
-    // Grid cells
-    g.lineStyle(1, 0xffffff, 0.2);
+    // Grid cells for building
+    g.lineStyle(1, 0xffffff, 0.1);
     for (const cell of this.grid) {
-      g.strokeRect(cell.x - size / 2 + 5, cell.y - size / 2 + 5, size - 10, size - 10);
-      if (!cell.building && cell !== this.grid[0]) {
-        // Draw + sign
-        g.lineStyle(1, 0xffffff, 0.3);
-        g.beginPath();
-        g.moveTo(cell.x - 8, cell.y);
-        g.lineTo(cell.x + 8, cell.y);
-        g.moveTo(cell.x, cell.y - 8);
-        g.lineTo(cell.x, cell.y + 8);
-        g.strokePath();
-      }
-    }
-
-    // Border
-    g.lineStyle(4, COLORS.roomBorder);
-    g.strokeRect(x, y, width, height);
-
-    // Draw bed
-    this.drawBed();
-
-    // Draw buildings
-    for (const cell of this.grid) {
-      if (cell.building && cell !== this.grid[0]) {
-        this.drawBuilding(cell);
-      }
-    }
-
-    // Draw door
-    this.drawDoor();
-  }
-
-  private drawBed(): void {
-    const g = this.graphics;
-    const cell = this.grid[0];
-
-    // Bed base
-    g.fillStyle(0x8B4513);
-    g.fillRect(cell.x - 20, cell.y - 14, 40, 28);
-    g.fillStyle(0xA0522D);
-    g.fillRect(cell.x - 18, cell.y - 12, 36, 22);
-
-    // Pillow
-    g.fillStyle(0xD2B48C);
-    g.fillRect(cell.x - 16, cell.y - 10, 14, 14);
-
-    // Person sleeping (bigger and more visible)
-    if (this.isResting && this.ownerId >= 0) {
-      // Body (blanket)
-      g.fillStyle(this.isPlayerRoom ? 0x4CAF50 : 0x2196F3);
-      g.fillRect(cell.x - 2, cell.y - 8, 18, 12);
-
-      // Head
-      g.fillStyle(0xffdbac);
-      g.fillCircle(cell.x - 8, cell.y - 2, 8);
-
-      // Hair
-      g.fillStyle(0x333333);
-      g.fillCircle(cell.x - 8, cell.y - 5, 6);
-
-      // Zzz effect for player
-      if (this.isPlayerRoom) {
-        g.fillStyle(0xffffff, 0.8);
-        g.fillCircle(cell.x + 10, cell.y - 15, 4);
-        g.fillCircle(cell.x + 16, cell.y - 20, 3);
-        g.fillCircle(cell.x + 20, cell.y - 24, 2);
-      }
+      g.strokeRect(cell.x - 18, cell.y - 18, 36, 36);
     }
   }
 
-  private drawBuilding(cell: GridCell): void {
-    if (!cell.building) return;
-    const g = this.graphics;
-
-    g.fillStyle(0x2d4a5e, 0.5);
-    g.fillRect(cell.x - 20, cell.y - 20, 40, 40);
-
-    // Icon text based on type
-    const icons: Record<string, string> = {
-      turret: '🔫', generator: '⚡', trap: '🪤', plant: '🌱'
-    };
-    const icon = icons[cell.building.type] || '?';
-
-    const text = this.scene.add.text(cell.x, cell.y, icon, {
-      fontSize: '24px'
-    }).setOrigin(0.5);
-    this.scene.time.delayedCall(100, () => text.destroy());
+  closeDoor(): void {
+    if (this.doorClosed) return;
+    this.doorClosed = true;
+    this.door.setData('closed', true);
+    this.door.setTint(0x4ade80);
   }
 
-  drawDoor(): void {
-    const dg = this.doorGraphics;
-    const { doorSide } = this.layout;
+  openDoor(): void {
+    this.doorClosed = false;
+    this.door.setData('closed', false);
+    this.door.clearTint();
+  }
 
-    dg.clear();
+  isDoorClosed(): boolean {
+    return this.doorClosed;
+  }
 
-    const isVertical = doorSide === 'left' || doorSide === 'right';
-    const dw = isVertical ? 15 : 50;
-    const dh = isVertical ? 50 : 15;
+  takeDamage(damage: number): boolean {
+    const actual = Math.max(1, damage - this.doorArmor);
+    this.doorHP = Math.max(0, this.doorHP - actual);
+    this.door.setData('hp', this.doorHP);
 
-    let dx = this.doorX - dw / 2;
-    let dy = this.doorY - dh / 2;
+    // Flash red
+    this.door.setTint(0xff0000);
+    this.scene.time.delayedCall(100, () => {
+      if (this.doorClosed && this.doorHP > 0) {
+        this.door.setTint(0x4ade80);
+      }
+    });
 
-    if (doorSide === 'bottom') dy = this.doorY - dh;
-    if (doorSide === 'top') dy = this.doorY;
-    if (doorSide === 'left') dx = this.doorX - dw;
-    if (doorSide === 'right') dx = this.doorX;
-
-    // Door frame
-    dg.fillStyle(COLORS.doorFrame);
-    dg.fillRect(dx - 3, dy - 3, dw + 6, dh + 6);
-
-    // Health bar
-    const hp = this.doorHP / this.doorMaxHP;
-    const color = hp > 0.5 ? COLORS.healthGood : hp > 0.25 ? COLORS.healthMedium : COLORS.healthLow;
-    dg.fillStyle(color);
-    dg.fillRect(dx, dy, dw * hp, dh);
-
-    dg.fillStyle(0x2d2d2d);
-    dg.fillRect(dx + dw * hp, dy, dw * (1 - hp), dh);
+    if (this.doorHP <= 0) {
+      this.door.destroy();
+      this.doorClosed = false;
+      return true;
+    }
+    return false;
   }
 
   setOwner(id: number, name: string, isPlayer: boolean): void {
@@ -248,7 +275,7 @@ export class Room {
     this.isPlayerRoom = isPlayer;
     this.isResting = true;
     this.ownerText.setText(name);
-    this.draw();
+    this.closeDoor();
   }
 
   clearOwner(): void {
@@ -257,14 +284,6 @@ export class Room {
     this.isPlayerRoom = false;
     this.isResting = false;
     this.ownerText.setText('');
-    this.draw();
-  }
-
-  takeDamage(damage: number): boolean {
-    const actual = Math.max(1, damage - this.doorArmor);
-    this.doorHP = Math.max(0, this.doorHP - actual);
-    this.drawDoor();
-    return this.doorHP <= 0;
   }
 
   upgradeDoor(): boolean {
@@ -275,14 +294,14 @@ export class Room {
     this.doorMaxHP = cfg.hp + SaveManager.getDoorHPBonus();
     this.doorHP = this.doorMaxHP;
     this.doorArmor = cfg.armor;
-    this.drawDoor();
+    this.door.setData('hp', this.doorHP);
+    this.door.setData('maxHp', this.doorMaxHP);
     return true;
   }
 
   upgradeBed(): boolean {
     if (this.bedLevel >= BED_CONFIGS.length - 1) return false;
     this.bedLevel++;
-    this.draw();
     return true;
   }
 
@@ -307,8 +326,8 @@ export class Room {
   }
 
   getEmptyCell(): GridCell | null {
-    for (let i = 1; i < this.grid.length; i++) {
-      if (!this.grid[i].building) return this.grid[i];
+    for (const cell of this.grid) {
+      if (!cell.building) return cell;
     }
     return null;
   }
@@ -323,6 +342,11 @@ export class Room {
       attackTimer: 0
     };
 
+    // Create sprite for turret
+    if (config.type === BuildingType.TURRET) {
+      building.sprite = this.scene.add.sprite(cell.x, cell.y, 'tower').setDepth(5);
+    }
+
     cell.building = building;
     this.buildings.push(building);
 
@@ -330,7 +354,6 @@ export class Room {
       this.turrets.push(building);
     }
 
-    this.draw();
     return building;
   }
 
@@ -340,9 +363,8 @@ export class Room {
   }
 
   getCellAt(px: number, py: number): GridCell | null {
-    const size = GAME_CONFIG.gridSize;
     for (const cell of this.grid) {
-      if (Math.abs(px - cell.x) < size / 2 && Math.abs(py - cell.y) < size / 2) {
+      if (Math.abs(px - cell.x) < 18 && Math.abs(py - cell.y) < 18) {
         return cell;
       }
     }
@@ -350,8 +372,15 @@ export class Room {
   }
 
   destroy(): void {
-    this.graphics.destroy();
-    this.doorGraphics.destroy();
+    this.floorGraphics.destroy();
     this.ownerText.destroy();
+    for (const wall of this.wallSprites) {
+      wall.destroy();
+    }
+    if (this.door && this.door.active) this.door.destroy();
+    if (this.bedSprite && this.bedSprite.active) this.bedSprite.destroy();
+    for (const b of this.buildings) {
+      if (b.sprite) b.sprite.destroy();
+    }
   }
 }

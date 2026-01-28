@@ -1,9 +1,9 @@
 /**
- * 玩家类 - 可移动 + 状态机
+ * 玩家类 - 物理精灵 + 点击移动
  */
 
 import Phaser from 'phaser';
-import { COLORS } from '../config/GameConfig';
+import { GAME_CONFIG } from '../config/GameConfig';
 import { Room } from './Room';
 
 export enum PlayerState {
@@ -11,98 +11,78 @@ export enum PlayerState {
   LYING_DOWN = 'lying_down' // 躺平中，产金币，受门保护
 }
 
-export class Player {
-  scene: Phaser.Scene;
-  sprite: Phaser.GameObjects.Container;
-  body: Phaser.GameObjects.Arc;
-  graphics: Phaser.GameObjects.Graphics;
-
-  x: number;
-  y: number;
-  speed: number = 120;
-
+export class Player extends Phaser.Physics.Arcade.Sprite {
   state: PlayerState = PlayerState.MOVING;
   currentRoom: Room | null = null;
-
-  // Movement
-  velocityX: number = 0;
-  velocityY: number = 0;
 
   // Stats
   gold: number = 50;
   goldPerSec: number = 0;
+  hp: number = 100;
+  maxHp: number = 100;
+
+  // Movement
+  moveSpeed: number = GAME_CONFIG.playerSpeed;
+  targetX: number = 0;
+  targetY: number = 0;
+  isMovingToTarget: boolean = false;
 
   // Invincibility after getting up
   invincibleTimer: number = 0;
 
+  // Visual overlay
+  overlay: Phaser.GameObjects.Graphics;
+
   constructor(scene: Phaser.Scene, x: number, y: number) {
-    this.scene = scene;
-    this.x = x;
-    this.y = y;
+    super(scene, x, y, 'player');
 
-    // Create container for player visuals
-    this.sprite = scene.add.container(x, y);
+    scene.add.existing(this);
+    scene.physics.add.existing(this);
 
-    // Body circle (for collision detection visual)
-    this.body = scene.add.circle(0, 0, 15, 0x4CAF50);
-    this.body.setStrokeStyle(2, 0xffffff);
+    this.setCircle(12, 4, 4);
+    this.setCollideWorldBounds(true);
+    this.setDepth(10);
 
-    // Graphics for details
-    this.graphics = scene.add.graphics();
-
-    this.sprite.add([this.body, this.graphics]);
-    this.sprite.setDepth(100);
-
-    this.draw();
+    this.overlay = scene.add.graphics().setDepth(11);
   }
 
-  setVelocity(vx: number, vy: number): void {
-    if (this.state === PlayerState.LYING_DOWN) {
-      this.velocityX = 0;
-      this.velocityY = 0;
-      return;
-    }
+  moveTo(x: number, y: number): void {
+    if (this.state === PlayerState.LYING_DOWN) return;
 
-    this.velocityX = vx;
-    this.velocityY = vy;
+    this.targetX = x;
+    this.targetY = y;
+    this.isMovingToTarget = true;
 
-    // Normalize if diagonal
-    const mag = Math.sqrt(vx * vx + vy * vy);
-    if (mag > 1) {
-      this.velocityX = (vx / mag) * this.speed;
-      this.velocityY = (vy / mag) * this.speed;
-    } else {
-      this.velocityX = vx * this.speed;
-      this.velocityY = vy * this.speed;
-    }
+    this.scene.physics.moveToObject(this, { x, y }, this.moveSpeed);
   }
 
-  update(dt: number, mapWidth: number, mapHeight: number): void {
+  stopMoving(): void {
+    this.isMovingToTarget = false;
+    this.setVelocity(0, 0);
+  }
+
+  update(dt: number): void {
     // Update invincibility
     if (this.invincibleTimer > 0) {
       this.invincibleTimer -= dt;
     }
 
-    if (this.state === PlayerState.MOVING) {
-      // Apply velocity
-      this.x += this.velocityX * dt;
-      this.y += this.velocityY * dt;
-
-      // Clamp to map bounds
-      this.x = Phaser.Math.Clamp(this.x, 20, mapWidth - 20);
-      this.y = Phaser.Math.Clamp(this.y, 20, mapHeight - 20);
-
-      // Update sprite position
-      this.sprite.setPosition(this.x, this.y);
-    } else if (this.state === PlayerState.LYING_DOWN) {
-      // Generate gold
-      if (this.currentRoom) {
-        this.goldPerSec = this.currentRoom.getGoldPerSec();
-        this.gold += this.goldPerSec * dt;
+    // Check if reached target
+    if (this.isMovingToTarget) {
+      const dist = Phaser.Math.Distance.Between(this.x, this.y, this.targetX, this.targetY);
+      if (dist < 10) {
+        this.stopMoving();
       }
     }
 
-    this.draw();
+    // Generate gold if lying down
+    if (this.state === PlayerState.LYING_DOWN && this.currentRoom) {
+      this.goldPerSec = this.currentRoom.getGoldPerSec();
+      this.gold += this.goldPerSec * dt;
+    }
+
+    // Draw overlay effects
+    this.drawOverlay();
   }
 
   lieDown(room: Room): void {
@@ -110,14 +90,10 @@ export class Player {
 
     this.state = PlayerState.LYING_DOWN;
     this.currentRoom = room;
-    this.velocityX = 0;
-    this.velocityY = 0;
+    this.stopMoving();
 
     // Snap to bed position
-    const bedCell = room.grid[0];
-    this.x = bedCell.x;
-    this.y = bedCell.y;
-    this.sprite.setPosition(this.x, this.y);
+    this.setPosition(room.bedX, room.bedY);
 
     room.setOwner(0, '玩家', true);
   }
@@ -126,18 +102,24 @@ export class Player {
     if (this.state === PlayerState.MOVING) return;
 
     this.state = PlayerState.MOVING;
-    this.invincibleTimer = 1.5; // 1.5 seconds invincibility
+    this.invincibleTimer = GAME_CONFIG.playerInvincibleTime;
 
     if (this.currentRoom) {
-      // Move player outside the room
+      // Move player to door position
       const room = this.currentRoom;
+      const doorSide = room.layout.doorSide;
+      let exitX = room.doorX;
+      let exitY = room.doorY;
+
+      // Position outside the door
+      if (doorSide === 'top') exitY -= 30;
+      else if (doorSide === 'bottom') exitY += 30;
+      else if (doorSide === 'left') exitX -= 30;
+      else if (doorSide === 'right') exitX += 30;
+
+      this.setPosition(exitX, exitY);
       this.currentRoom.clearOwner();
       this.currentRoom = null;
-
-      // Position at door
-      this.x = room.doorX;
-      this.y = room.doorY + 30;
-      this.sprite.setPosition(this.x, this.y);
     }
   }
 
@@ -145,55 +127,32 @@ export class Player {
     return this.invincibleTimer > 0;
   }
 
-  draw(): void {
-    const g = this.graphics;
-    g.clear();
+  isLyingDown(): boolean {
+    return this.state === PlayerState.LYING_DOWN;
+  }
 
-    if (this.state === PlayerState.MOVING) {
-      // Running player
-      this.body.setFillStyle(0x4CAF50);
+  private drawOverlay(): void {
+    this.overlay.clear();
 
-      // Face
-      g.fillStyle(0xffdbac);
-      g.fillCircle(0, -5, 10);
+    // Invincibility shield effect
+    if (this.invincibleTimer > 0) {
+      const alpha = 0.3 + Math.sin(Date.now() / 80) * 0.3;
+      this.overlay.lineStyle(3, 0x00ffff, alpha);
+      this.overlay.strokeCircle(this.x, this.y, 20);
+    }
 
-      // Eyes
-      g.fillStyle(0x000000);
-      g.fillCircle(-3, -7, 2);
-      g.fillCircle(3, -7, 2);
-
-      // Direction indicator (arrow)
-      if (Math.abs(this.velocityX) > 1 || Math.abs(this.velocityY) > 1) {
-        const angle = Math.atan2(this.velocityY, this.velocityX);
-        g.lineStyle(3, 0xffffff);
-        g.beginPath();
-        g.moveTo(0, 0);
-        g.lineTo(Math.cos(angle) * 20, Math.sin(angle) * 20);
-        g.strokePath();
-      }
-
-      // Invincibility effect
-      if (this.invincibleTimer > 0) {
-        g.lineStyle(3, 0x00ffff, 0.5 + Math.sin(Date.now() / 100) * 0.5);
-        g.strokeCircle(0, 0, 20);
-      }
-    } else {
-      // Sleeping player
-      this.body.setFillStyle(0x2196F3);
-
-      // Zzz
-      g.fillStyle(0xffffff, 0.8);
-      g.fillCircle(15, -15, 5);
-      g.fillCircle(22, -22, 4);
-      g.fillCircle(27, -28, 3);
+    // Sleeping Zzz effect
+    if (this.state === PlayerState.LYING_DOWN) {
+      this.overlay.fillStyle(0xffffff, 0.8);
+      const t = Date.now() / 500;
+      this.overlay.fillCircle(this.x + 15 + Math.sin(t) * 2, this.y - 15, 4);
+      this.overlay.fillCircle(this.x + 22 + Math.sin(t + 1) * 2, this.y - 22, 3);
+      this.overlay.fillCircle(this.x + 27 + Math.sin(t + 2) * 2, this.y - 28, 2);
     }
   }
 
-  getBounds(): { x: number; y: number; radius: number } {
-    return { x: this.x, y: this.y, radius: 15 };
-  }
-
-  destroy(): void {
-    this.sprite.destroy();
+  destroy(fromScene?: boolean): void {
+    this.overlay.destroy();
+    super.destroy(fromScene);
   }
 }
