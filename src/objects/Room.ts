@@ -248,6 +248,17 @@ export class Room {
     return this.doorClosed;
   }
 
+  // 检查点击位置是否在门附近
+  isDoorClicked(px: number, py: number): boolean {
+    const dist = Phaser.Math.Distance.Between(px, py, this.doorX, this.doorY);
+    return dist < 40;
+  }
+
+  // 检查玩家是否在房间内（可以关门）
+  canCloseDoor(playerX: number, playerY: number): boolean {
+    return this.contains(playerX, playerY) && !this.doorClosed;
+  }
+
   takeDamage(damage: number): boolean {
     const actual = Math.max(1, damage - this.doorArmor);
     this.doorHP = Math.max(0, this.doorHP - actual);
@@ -275,7 +286,7 @@ export class Room {
     this.isPlayerRoom = isPlayer;
     this.isResting = true;
     this.ownerText.setText(name);
-    this.closeDoor();
+    // 门不再自动关闭，玩家需要点击门来关门
   }
 
   clearOwner(): void {
