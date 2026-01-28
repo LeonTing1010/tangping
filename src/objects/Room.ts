@@ -199,36 +199,61 @@ export class Room {
 
   private createBed(bedGroup: Phaser.Physics.Arcade.StaticGroup): void {
     this.bedSprite = bedGroup.create(this.bedX, this.bedY, 'bed') as Phaser.Physics.Arcade.Sprite;
-    this.bedSprite.setDisplaySize(40, 30);
+    this.bedSprite.setDisplaySize(50, 35);
     this.bedSprite.setData('room', this);
     this.bedSprite.refreshBody();
   }
 
   private drawFloor(): void {
     const g = this.floorGraphics;
-    const { x, y, width, height } = this.layout;
+    const { x, y, width, height, id } = this.layout;
 
     g.clear();
 
-    // Room floor
-    g.fillStyle(COLORS.floor, 1);
+    // Room themes based on room ID
+    const themes = [
+      { floor: 0x3d5a80, accent: 0x4a6fa5 },  // Blue bedroom
+      { floor: 0x4a5568, accent: 0x5a6878 },  // Gray office
+      { floor: 0x553c2d, accent: 0x6b4e3d },  // Brown study
+      { floor: 0x2d4a3d, accent: 0x3d5a4d },  // Green garden room
+      { floor: 0x4a3d5a, accent: 0x5a4d6a },  // Purple lounge
+      { floor: 0x5a4a3d, accent: 0x6a5a4d },  // Warm tan room
+    ];
+    const theme = themes[(id - 1) % themes.length];
+
+    // Room floor with gradient effect
+    g.fillStyle(theme.floor);
     g.fillRect(x + WALL_SIZE, y + WALL_SIZE, width - WALL_SIZE * 2, height - WALL_SIZE * 2);
 
-    // Floor pattern
-    g.fillStyle(COLORS.floorLight, 0.3);
-    for (let py = y + WALL_SIZE; py < y + height - WALL_SIZE; py += 20) {
-      for (let px = x + WALL_SIZE; px < x + width - WALL_SIZE; px += 20) {
-        if ((Math.floor((px - x) / 20) + Math.floor((py - y) / 20)) % 2 === 0) {
-          g.fillRect(px, py, 20, 20);
-        }
+    // Wooden floor plank pattern
+    g.fillStyle(theme.accent, 0.4);
+    const plankWidth = 40;
+    const plankHeight = 8;
+    for (let py = y + WALL_SIZE; py < y + height - WALL_SIZE; py += plankHeight) {
+      const offset = (Math.floor((py - y) / plankHeight) % 2) * (plankWidth / 2);
+      for (let px = x + WALL_SIZE - offset; px < x + width - WALL_SIZE; px += plankWidth) {
+        g.fillRect(px, py, plankWidth - 1, plankHeight - 1);
       }
     }
 
-    // Grid cells for building
-    g.lineStyle(1, 0xffffff, 0.1);
-    for (const cell of this.grid) {
-      g.strokeRect(cell.x - 18, cell.y - 18, 36, 36);
-    }
+    // Room border highlight
+    g.lineStyle(2, 0xffffff, 0.1);
+    g.strokeRect(x + WALL_SIZE + 2, y + WALL_SIZE + 2, width - WALL_SIZE * 2 - 4, height - WALL_SIZE * 2 - 4);
+
+    // Corner decorations
+    g.fillStyle(theme.accent, 0.3);
+    g.fillCircle(x + WALL_SIZE + 15, y + WALL_SIZE + 15, 8);
+    g.fillCircle(x + width - WALL_SIZE - 15, y + WALL_SIZE + 15, 8);
+    g.fillCircle(x + WALL_SIZE + 15, y + height - WALL_SIZE - 15, 8);
+    g.fillCircle(x + width - WALL_SIZE - 15, y + height - WALL_SIZE - 15, 8);
+
+    // Add rug/carpet in center
+    const rugWidth = Math.min(80, width - 80);
+    const rugHeight = Math.min(60, height - 80);
+    g.fillStyle(0x8b4513, 0.4);
+    g.fillRect(x + width / 2 - rugWidth / 2, y + height / 2 - rugHeight / 2 + 20, rugWidth, rugHeight);
+    g.lineStyle(2, 0xa0522d, 0.5);
+    g.strokeRect(x + width / 2 - rugWidth / 2, y + height / 2 - rugHeight / 2 + 20, rugWidth, rugHeight);
   }
 
   closeDoor(): void {

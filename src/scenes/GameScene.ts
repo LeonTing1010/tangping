@@ -61,74 +61,164 @@ export class GameScene extends Phaser.Scene {
   private createTextures(): void {
     const g = this.make.graphics({ x: 0, y: 0 });
 
-    // Wall texture
+    // Wall texture - brick style
     g.clear();
-    g.fillStyle(0x1a2e2e);
+    g.fillStyle(0x2d3748);
     g.fillRect(0, 0, 16, 16);
-    g.lineStyle(1, 0x2d4d4d);
+    g.fillStyle(0x1a202c);
+    g.fillRect(0, 0, 7, 7);
+    g.fillRect(8, 8, 8, 8);
+    g.lineStyle(1, 0x4a5568);
     g.strokeRect(0, 0, 16, 16);
     g.generateTexture('wall', 16, 16);
 
-    // Floor texture
+    // Floor texture - wooden floor style
     g.clear();
-    g.fillStyle(0x0a1414);
+    g.fillStyle(0x1a1a2e);
     g.fillRect(0, 0, 64, 64);
-    g.lineStyle(1, 0x0f1f1f);
-    g.strokeRect(0, 0, 32, 32);
-    g.strokeRect(32, 32, 32, 32);
+    // Wood grain effect
+    g.fillStyle(0x232340);
+    for (let i = 0; i < 64; i += 16) {
+      g.fillRect(0, i, 64, 2);
+    }
+    g.lineStyle(1, 0x2d2d4a, 0.5);
+    g.strokeRect(0, 0, 32, 64);
+    g.strokeRect(32, 0, 32, 64);
     g.generateTexture('floor', 64, 64);
 
-    // Door horizontal
+    // Door horizontal - wooden door with handle
     g.clear();
-    g.fillStyle(0xd97706);
+    g.fillStyle(0x8b4513);
     g.fillRect(0, 0, 50, 12);
+    g.fillStyle(0x654321);
+    g.fillRect(2, 2, 46, 8);
+    g.fillStyle(0xffd700);
+    g.fillCircle(40, 6, 3);
     g.generateTexture('door_h', 50, 12);
 
     // Door vertical
     g.clear();
-    g.fillStyle(0xd97706);
+    g.fillStyle(0x8b4513);
     g.fillRect(0, 0, 12, 50);
+    g.fillStyle(0x654321);
+    g.fillRect(2, 2, 8, 46);
+    g.fillStyle(0xffd700);
+    g.fillCircle(6, 40, 3);
     g.generateTexture('door_v', 12, 50);
 
-    // Bed
+    // Bed - cozy bed with pillow and blanket
     g.clear();
-    g.fillStyle(0x475569);
-    g.fillRect(2, 4, 36, 22);
-    g.fillStyle(0x94a3b8);
-    g.fillRect(4, 6, 14, 18);
-    g.generateTexture('bed', 40, 30);
+    // Frame
+    g.fillStyle(0x5d4037);
+    g.fillRect(0, 0, 50, 35);
+    // Mattress
+    g.fillStyle(0xe8e8e8);
+    g.fillRect(3, 3, 44, 29);
+    // Pillow
+    g.fillStyle(0xffffff);
+    g.fillRect(5, 5, 15, 10);
+    // Blanket
+    g.fillStyle(0x3b82f6);
+    g.fillRect(5, 16, 40, 14);
+    g.fillStyle(0x2563eb);
+    g.fillRect(5, 26, 40, 4);
+    g.generateTexture('bed', 50, 35);
 
-    // Player
+    // Player - cute character
     g.clear();
-    g.fillStyle(0xebc49d);
-    g.fillCircle(16, 16, 12);
-    g.fillStyle(0x4b3621);
-    g.fillRect(4, 4, 24, 8);
-    g.lineStyle(1.5, 0x000000);
-    g.strokeRect(8, 12, 6, 6);
-    g.strokeRect(18, 12, 6, 6);
+    // Body
+    g.fillStyle(0x60a5fa);
+    g.fillRect(8, 16, 16, 14);
+    // Head
+    g.fillStyle(0xfcd9b6);
+    g.fillCircle(16, 12, 10);
+    // Hair
+    g.fillStyle(0x4a3728);
+    g.fillRect(6, 4, 20, 6);
+    // Eyes
+    g.fillStyle(0x000000);
+    g.fillCircle(12, 12, 2);
+    g.fillCircle(20, 12, 2);
+    // Smile
+    g.lineStyle(1, 0x000000);
+    g.beginPath();
+    g.arc(16, 14, 4, 0.2, Math.PI - 0.2);
+    g.strokePath();
     g.generateTexture('player', 32, 32);
 
-    // Ghost
+    // Ghost - scary but cute ghost
     g.clear();
+    // Body - wavy bottom
+    g.fillStyle(0x4a1a6b);
+    g.fillCircle(20, 16, 16);
+    g.fillRect(4, 16, 32, 16);
+    // Wavy bottom
     g.fillStyle(0x1a1a2e);
-    g.fillCircle(16, 16, 14);
+    g.fillRect(4, 28, 8, 8);
+    g.fillRect(20, 28, 8, 8);
+    g.fillStyle(0x4a1a6b);
+    g.fillCircle(8, 32, 4);
+    g.fillCircle(16, 32, 4);
+    g.fillCircle(24, 32, 4);
+    g.fillCircle(32, 32, 4);
+    // Glowing red eyes
     g.fillStyle(0xff0000);
-    g.fillCircle(10, 14, 4);
-    g.fillCircle(22, 14, 4);
-    g.generateTexture('ghost', 32, 32);
+    g.fillCircle(14, 14, 5);
+    g.fillCircle(26, 14, 5);
+    g.fillStyle(0xffff00);
+    g.fillCircle(14, 14, 2);
+    g.fillCircle(26, 14, 2);
+    g.generateTexture('ghost', 40, 40);
 
-    // Tower
+    // Tower - defensive turret
     g.clear();
-    g.fillStyle(0x4ade80);
-    g.fillTriangle(16, 2, 2, 30, 30, 30);
+    // Base
+    g.fillStyle(0x374151);
+    g.fillRect(6, 20, 20, 12);
+    // Turret body
+    g.fillStyle(0x4b5563);
+    g.fillCircle(16, 16, 10);
+    // Barrel
+    g.fillStyle(0x1f2937);
+    g.fillRect(14, 2, 4, 14);
+    // Accent
+    g.fillStyle(0x10b981);
+    g.fillCircle(16, 16, 4);
     g.generateTexture('tower', 32, 32);
 
-    // Bullet
+    // Bullet - energy ball
     g.clear();
-    g.fillStyle(0x4ade80);
-    g.fillCircle(4, 4, 4);
-    g.generateTexture('bullet', 8, 8);
+    g.fillStyle(0x10b981);
+    g.fillCircle(6, 6, 6);
+    g.fillStyle(0x34d399);
+    g.fillCircle(5, 5, 3);
+    g.generateTexture('bullet', 12, 12);
+
+    // Furniture - desk
+    g.clear();
+    g.fillStyle(0x78350f);
+    g.fillRect(0, 8, 32, 16);
+    g.fillStyle(0x92400e);
+    g.fillRect(2, 10, 28, 12);
+    g.generateTexture('desk', 32, 24);
+
+    // Furniture - lamp
+    g.clear();
+    g.fillStyle(0xfbbf24);
+    g.fillCircle(10, 8, 8);
+    g.fillStyle(0x78716c);
+    g.fillRect(8, 16, 4, 14);
+    g.generateTexture('lamp', 20, 30);
+
+    // Furniture - plant
+    g.clear();
+    g.fillStyle(0x7c2d12);
+    g.fillRect(4, 16, 12, 10);
+    g.fillStyle(0x22c55e);
+    g.fillCircle(10, 12, 8);
+    g.fillCircle(6, 8, 5);
+    g.fillCircle(14, 8, 5);
+    g.generateTexture('plant_decor', 20, 26);
 
     g.destroy();
   }
@@ -177,17 +267,57 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createBackground(): void {
-    // Tile background
-    const bg = this.add.tileSprite(
-      this.mapWidth / 2, this.mapHeight / 2,
-      this.mapWidth, this.mapHeight,
-      'floor'
-    ).setDepth(-2);
+    const g = this.add.graphics().setDepth(-2);
 
-    // Map border
-    const g = this.add.graphics();
-    g.lineStyle(4, 0x4a6fa5);
-    g.strokeRect(2, 2, this.mapWidth - 4, this.mapHeight - 4);
+    // Dark corridor floor
+    g.fillStyle(0x1a1a2e);
+    g.fillRect(0, 0, this.mapWidth, this.mapHeight);
+
+    // Add some texture/variation to corridors
+    g.fillStyle(0x16162a, 0.5);
+    for (let y = 0; y < this.mapHeight; y += 40) {
+      for (let x = 0; x < this.mapWidth; x += 40) {
+        if ((x + y) % 80 === 0) {
+          g.fillRect(x, y, 40, 40);
+        }
+      }
+    }
+
+    // Add corridor lighting effect (subtle lighter spots)
+    g.fillStyle(0x2a2a4e, 0.3);
+    for (let i = 0; i < 20; i++) {
+      const x = Phaser.Math.Between(100, this.mapWidth - 100);
+      const y = Phaser.Math.Between(100, this.mapHeight - 100);
+      g.fillCircle(x, y, Phaser.Math.Between(30, 60));
+    }
+
+    // Map border with glow effect
+    g.lineStyle(6, 0x1e3a5f);
+    g.strokeRect(3, 3, this.mapWidth - 6, this.mapHeight - 6);
+    g.lineStyle(2, 0x3b82f6);
+    g.strokeRect(5, 5, this.mapWidth - 10, this.mapHeight - 10);
+
+    // Add decorative elements in corridors
+    this.addCorridorDecorations();
+  }
+
+  private addCorridorDecorations(): void {
+    // Add some random decorations in corridor areas
+    const decorPositions = [
+      { x: 350, y: 350 },
+      { x: 850, y: 350 },
+      { x: 350, y: 750 },
+      { x: 850, y: 750 },
+      { x: 600, y: 450 },
+      { x: 600, y: 1150 },
+    ];
+
+    for (const pos of decorPositions) {
+      // Add a small light/lamp sprite
+      if (this.textures.exists('lamp')) {
+        const lamp = this.add.sprite(pos.x, pos.y, 'lamp').setDepth(0).setAlpha(0.7);
+      }
+    }
   }
 
   private createRooms(): void {
@@ -199,9 +329,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createPlayer(): void {
-    // Start in corridor between rooms (not inside any room)
-    // Room layouts: center rooms are at x:280-440, corridor is around x:200 or x:500
-    this.player = new Player(this, this.mapWidth / 2, 50);
+    // Start in center corridor area
+    this.player = new Player(this, this.mapWidth / 2, this.mapHeight / 2 - 100);
     this.player.gold = SaveManager.getStartGoldBonus();
   }
 
@@ -210,9 +339,15 @@ export class GameScene extends Phaser.Scene {
     this.ghostSpawned = true;
 
     this.wave++;
-    // Spawn at bottom of map in corridor
-    const x = this.mapWidth / 2;
-    const y = this.mapHeight - 50;
+    // Spawn ghost 400-600 pixels away from player in a random direction
+    const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+    const distance = Phaser.Math.Between(400, 600);
+    let x = this.player.x + Math.cos(angle) * distance;
+    let y = this.player.y + Math.sin(angle) * distance;
+
+    // Clamp to map bounds
+    x = Phaser.Math.Clamp(x, 50, this.mapWidth - 50);
+    y = Phaser.Math.Clamp(y, 50, this.mapHeight - 50);
 
     this.ghost = new Ghost(this, x, y, this.wave);
 
