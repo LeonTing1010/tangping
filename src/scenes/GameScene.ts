@@ -222,16 +222,17 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.physics.add.overlap(this.ghost, this.player, () => {
-      if (this.player.state === PlayerState.MOVING && !this.player.isInvincible()) {
+      if (this.player.isInvincible()) return;
+      // Game over if player is moving
+      if (this.player.state === PlayerState.MOVING) {
         this.endGame(false, '被猎梦者抓住了！');
+        return;
       }
-    });
-
-    this.physics.add.overlap(this.ghost, this.beds, (ghost, bed) => {
-      const b = bed as Phaser.Physics.Arcade.Sprite;
-      const room = b.getData('room') as Room;
-      if (this.player.state === PlayerState.LYING_DOWN && this.player.currentRoom === room) {
-        this.endGame(false, '猎梦者闯入了你的房间！');
+      // Game over if lying down but door is open
+      if (this.player.state === PlayerState.LYING_DOWN && this.player.currentRoom) {
+        if (!this.player.currentRoom.isDoorClosed()) {
+          this.endGame(false, '门没关好，被猎梦者抓住了！');
+        }
       }
     });
 
@@ -273,7 +274,7 @@ export class GameScene extends Phaser.Scene {
 
       if (this.player.state === PlayerState.MOVING && room && room.ownerId < 0) {
         this.player.lieDown(room);
-        this.showMessage('开始躺平！自动关门中...');
+        this.showMessage('躺下了！快点击门关门！');
       }
     });
 
@@ -353,16 +354,38 @@ export class GameScene extends Phaser.Scene {
     // Don't move if clicking UI area
     if (pointer.y > GAME_CONFIG.height - 120) return;
 
-    // If lying down, handle build
-    if (this.player.state === PlayerState.LYING_DOWN) {
-      const worldPoint = pointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
-      this.handleBuild(worldPoint.x, worldPoint.y);
+    const worldPoint = pointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
+    const clickX = worldPoint.x;
+    const clickY = worldPoint.y;
+
+    // Check if clicking on a door (to close it)
+    if (this.player.state === PlayerState.LYING_DOWN && this.player.currentRoom) {
+      const room = this.player.currentRoom;
+      if (room.isDoorClicked(clickX, clickY) && !room.isDoorClosed()) {
+        room.closeDoor();
+        this.showMessage('门已关闭！你安全了！');
+        return;
+      }
+      // Handle build
+      this.handleBuild(clickX, clickY);
       return;
     }
 
+    // When moving, check if clicking on own room's door to close it
+    for (const room of this.rooms) {
+      if (room.isPlayerRoom && room.isDoorClicked(clickX, clickY) && !room.isDoorClosed()) {
+        // Player must be near the door to close it
+        const distToDoor = Phaser.Math.Distance.Between(this.player.x, this.player.y, room.doorX, room.doorY);
+        if (distToDoor < 80) {
+          room.closeDoor();
+          this.showMessage('门已关闭！');
+          return;
+        }
+      }
+    }
+
     // Move to clicked position
-    const worldPoint = pointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
-    this.player.moveTo(worldPoint.x, worldPoint.y);
+    this.player.moveTo(clickX, clickY);
   }
 
   private handleBuild(x: number, y: number): void {
@@ -462,16 +485,17 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.physics.add.overlap(this.ghost, this.player, () => {
-      if (this.player.state === PlayerState.MOVING && !this.player.isInvincible()) {
+      if (this.player.isInvincible()) return;
+      // Game over if player is moving
+      if (this.player.state === PlayerState.MOVING) {
         this.endGame(false, '被猎梦者抓住了！');
+        return;
       }
-    });
-
-    this.physics.add.overlap(this.ghost, this.beds, (ghost, bed) => {
-      const b = bed as Phaser.Physics.Arcade.Sprite;
-      const room = b.getData('room') as Room;
-      if (this.player.state === PlayerState.LYING_DOWN && this.player.currentRoom === room) {
-        this.endGame(false, '猎梦者闯入了你的房间！');
+      // Game over if lying down but door is open
+      if (this.player.state === PlayerState.LYING_DOWN && this.player.currentRoom) {
+        if (!this.player.currentRoom.isDoorClosed()) {
+          this.endGame(false, '门没关好，被猎梦者抓住了！');
+        }
       }
     });
 

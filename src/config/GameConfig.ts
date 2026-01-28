@@ -87,7 +87,7 @@ export const DOOR_CONFIGS: DoorConfig[] = [
 
 // ========== 建筑配置 ==========
 export const BUILDING_CONFIGS: Record<string, BuildingConfig> = {
-  turret: { type: BuildingType.TURRET, name: '弹弓炮台', cost: 50, damage: 5, range: 150, attackSpeed: 1.5 },
+  turret: { type: BuildingType.TURRET, name: '弹弓炮台', cost: 50, damage: 5, range: 300, attackSpeed: 0.8 },
   generator: { type: BuildingType.GENERATOR, name: '发电机', cost: 80 },
   trap: { type: BuildingType.TRAP, name: '陷阱', cost: 40, damage: 2 },
   plant: { type: BuildingType.PLANT, name: '摇钱草', cost: 30, goldPerSec: 1 }
@@ -100,53 +100,73 @@ export const GAME_CONFIG = {
   height: 800,
 
   // 地图大小 (实际游戏区域，比视口大)
-  mapWidth: 800,
-  mapHeight: 1200,
+  mapWidth: 1200,
+  mapHeight: 1600,
 
-  gridSize: 50,
+  // 网格大小
+  gridSize: 40,
+
+  // 走廊宽度（至少3格 = 120px）
+  corridorWidth: 120,
 
   // 玩家配置
-  playerSpeed: 120,
+  playerSpeed: 200,           // 200px/s
   playerInvincibleTime: 1.5,
 
   // 游戏时间
-  ghostDelay: 8,          // 开始后8秒出猛鬼
+  ghostDelay: 8,              // 开始后8秒出猎梦者
   survivalTime: 180,
-  ghostSpawnInterval: 15, // 每15秒一波
+  ghostSpawnInterval: 15,     // 每15秒一波
   difficultyScale: 0.1,
 
-  // 猛鬼配置
+  // 猎梦者配置
   ghostBaseHP: 60,
   ghostBaseDamage: 12,
-  ghostSpeed: 50,
-  ghostChaseSpeed: 75,    // 追击时更快
+  ghostSpeed: 180,            // 180px/s (玩家的90%)
+  ghostChaseSpeed: 180,       // 追击时保持180px/s
   ghostAttackSpeed: 1.5,
-  ghostDetectionRange: 350,
+  ghostDetectionRange: 400,   // 400px检测范围
 
   killReward: 8,
   beeRewardRate: 10
 };
 
-// ========== 房间布局 (更大地图) ==========
+// ========== 房间布局 (1200x1600地图，40px网格) ==========
+// 房间大小: 5x5 到 8x8 格子 (200x200 到 320x320 像素)
+// 走廊宽度: 至少120px (3格)
 export const ROOM_LAYOUTS: RoomLayout[] = [
-  // 左上区域
-  { id: 1, x: 20, y: 100, width: 140, height: 160, gridCols: 2, gridRows: 3, doorSide: 'right' },
-  { id: 2, x: 20, y: 320, width: 140, height: 160, gridCols: 2, gridRows: 3, doorSide: 'right' },
+  // === 第一排 (y: 80-280) ===
+  // 左侧房间
+  { id: 1, x: 40, y: 80, width: 240, height: 200, gridCols: 5, gridRows: 4, doorSide: 'right' },
+  // 中间房间
+  { id: 2, x: 440, y: 80, width: 320, height: 200, gridCols: 7, gridRows: 4, doorSide: 'bottom' },
+  // 右侧房间
+  { id: 3, x: 920, y: 80, width: 240, height: 200, gridCols: 5, gridRows: 4, doorSide: 'left' },
 
-  // 右上区域
-  { id: 3, x: 640, y: 100, width: 140, height: 160, gridCols: 2, gridRows: 3, doorSide: 'left' },
-  { id: 4, x: 640, y: 320, width: 140, height: 160, gridCols: 2, gridRows: 3, doorSide: 'left' },
+  // === 第二排 (y: 400-640) ===
+  // 左侧房间
+  { id: 4, x: 40, y: 400, width: 280, height: 240, gridCols: 6, gridRows: 5, doorSide: 'right' },
+  // 右侧房间
+  { id: 5, x: 880, y: 400, width: 280, height: 240, gridCols: 6, gridRows: 5, doorSide: 'left' },
 
-  // 中间区域
-  { id: 5, x: 280, y: 200, width: 160, height: 140, gridCols: 3, gridRows: 2, doorSide: 'bottom' },
-  { id: 6, x: 280, y: 480, width: 160, height: 140, gridCols: 3, gridRows: 2, doorSide: 'top' },
+  // === 中央大房间 (y: 520-760) ===
+  { id: 6, x: 440, y: 520, width: 320, height: 240, gridCols: 7, gridRows: 5, doorSide: 'top' },
 
-  // 下方区域
-  { id: 7, x: 50, y: 700, width: 180, height: 140, gridCols: 3, gridRows: 2, doorSide: 'top' },
-  { id: 8, x: 570, y: 700, width: 180, height: 140, gridCols: 3, gridRows: 2, doorSide: 'top' },
+  // === 第三排 (y: 880-1120) ===
+  // 左侧房间
+  { id: 7, x: 40, y: 880, width: 240, height: 240, gridCols: 5, gridRows: 5, doorSide: 'right' },
+  // 中间房间
+  { id: 8, x: 400, y: 880, width: 400, height: 240, gridCols: 9, gridRows: 5, doorSide: 'top' },
+  // 右侧房间
+  { id: 9, x: 920, y: 880, width: 240, height: 240, gridCols: 5, gridRows: 5, doorSide: 'left' },
 
-  // 最底部
-  { id: 9, x: 280, y: 950, width: 240, height: 160, gridCols: 4, gridRows: 3, doorSide: 'top' }
+  // === 底部房间 (y: 1280-1520) ===
+  // 左下房间
+  { id: 10, x: 80, y: 1280, width: 320, height: 240, gridCols: 7, gridRows: 5, doorSide: 'top' },
+  // 右下房间
+  { id: 11, x: 800, y: 1280, width: 320, height: 240, gridCols: 7, gridRows: 5, doorSide: 'top' },
+  // 中下小房间
+  { id: 12, x: 480, y: 1320, width: 240, height: 200, gridCols: 5, gridRows: 4, doorSide: 'top' }
 ];
 
 // ========== AI玩家配置 ==========

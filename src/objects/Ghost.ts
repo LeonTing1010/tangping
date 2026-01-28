@@ -99,31 +99,57 @@ export class Ghost extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    // Priority 2: Chase moving player if close
-    if (player.state === PlayerState.MOVING && !player.isInvincible() && distToPlayer < GAME_CONFIG.ghostDetectionRange) {
-      this.targetPlayer = player;
-      this.ghostState = GhostState.CHASE;
-      this.targetRoom = null;
-      return;
+    // Priority 2: Chase player if within detection range and NOT behind closed door
+    const playerDetectable = distToPlayer < GAME_CONFIG.ghostDetectionRange;
+    const playerVulnerable = !player.isInvincible();
+
+    if (playerDetectable && playerVulnerable) {
+      // Check if player is lying down but door is open (can still catch them!)
+      if (player.state === PlayerState.LYING_DOWN && player.currentRoom) {
+        if (!player.currentRoom.isDoorClosed()) {
+          // Door is open! Chase the player into the room
+          this.targetPlayer = player;
+          this.ghostState = GhostState.CHASE;
+          this.targetRoom = null;
+          return;
+        }
+        // Door is closed, attack it
+        this.targetRoom = player.currentRoom;
+        this.ghostState = GhostState.ATTACK_DOOR;
+        this.targetPlayer = null;
+        return;
+      }
+
+      // Player is moving, chase them
+      if (player.state === PlayerState.MOVING) {
+        this.targetPlayer = player;
+        this.ghostState = GhostState.CHASE;
+        this.targetRoom = null;
+        return;
+      }
     }
 
-    // Priority 3: Attack nearest closed door
+    // Priority 3: Attack nearest closed door (if player is behind it)
     let nearestDoor: Phaser.Physics.Arcade.Sprite | null = null;
     let minDist = Infinity;
 
     const doorChildren = doors.getChildren() as Phaser.Physics.Arcade.Sprite[];
     for (const door of doorChildren) {
       if (door.getData('closed')) {
-        const dist = Phaser.Math.Distance.Between(this.x, this.y, door.x, door.y);
-        if (dist < minDist) {
-          minDist = dist;
-          nearestDoor = door;
+        const room = door.getData('room') as Room;
+        // Only attack doors that have a player behind them
+        if (room && room.isPlayerRoom) {
+          const dist = Phaser.Math.Distance.Between(this.x, this.y, door.x, door.y);
+          if (dist < minDist) {
+            minDist = dist;
+            nearestDoor = door;
+          }
         }
       }
     }
 
     if (nearestDoor !== null) {
-      const room = (nearestDoor as Phaser.Physics.Arcade.Sprite).getData('room') as Room;
+      const room = nearestDoor.getData('room') as Room;
       this.targetRoom = room;
       this.ghostState = GhostState.ATTACK_DOOR;
       this.targetPlayer = null;
@@ -149,14 +175,6 @@ export class Ghost extends Phaser.Physics.Arcade.Sprite {
   }
 
   private doChase(player: Player): void {
-    // If player started lying down, switch to attack door
-    if (player.state === PlayerState.LYING_DOWN && player.currentRoom) {
-      this.targetRoom = player.currentRoom;
-      this.ghostState = GhostState.ATTACK_DOOR;
-      this.targetPlayer = null;
-      return;
-    }
-
     // If player is invincible, patrol
     if (player.isInvincible()) {
       this.ghostState = GhostState.PATROL;
@@ -164,7 +182,19 @@ export class Ghost extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    // Chase player
+    // If player is lying down, check if door is closed
+    if (player.state === PlayerState.LYING_DOWN && player.currentRoom) {
+      if (player.currentRoom.isDoorClosed()) {
+        // Door closed, attack it
+        this.targetRoom = player.currentRoom;
+        this.ghostState = GhostState.ATTACK_DOOR;
+        this.targetPlayer = null;
+        return;
+      }
+      // Door is open, keep chasing! (player is vulnerable)
+    }
+
+    // Chase player at chase speed
     this.scene.physics.moveToObject(this, player, this.chaseSpeed);
   }
 
