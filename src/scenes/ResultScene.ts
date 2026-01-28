@@ -13,14 +13,14 @@ interface ResultData {
 }
 
 export class ResultScene extends Phaser.Scene {
-  private data!: ResultData;
+  private resultData!: ResultData;
 
   constructor() {
     super({ key: 'ResultScene' });
   }
 
   init(data: ResultData): void {
-    this.data = data;
+    this.resultData = data;
   }
 
   create(): void {
@@ -35,14 +35,14 @@ export class ResultScene extends Phaser.Scene {
     g.fillRect(0, 0, GAME_CONFIG.width, GAME_CONFIG.height);
 
     // Dramatic overlay
-    const color = this.data.victory ? 0x1b5e20 : 0x4a0000;
+    const color = this.resultData.victory ? 0x1b5e20 : 0x4a0000;
     g.fillStyle(color, 0.4);
     g.fillRect(0, 0, GAME_CONFIG.width, GAME_CONFIG.height);
   }
 
   private createResult(): void {
     const centerX = GAME_CONFIG.width / 2;
-    const { victory, survivalTime, kills, beeReward } = this.data;
+    const { victory, survivalTime, kills, beeReward } = this.resultData;
 
     // Result panel
     this.add.rectangle(centerX, 250, 350, 350, 0x000000, 0.85)

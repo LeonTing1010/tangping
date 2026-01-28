@@ -21,8 +21,9 @@ export class GameScene extends Phaser.Scene {
   bullets!: Phaser.Physics.Arcade.Group;
 
   player!: Player;
-  ghost!: Ghost;
+  ghost: Ghost | null = null;
   rooms: Room[] = [];
+  ghostSpawned: boolean = false;
 
   wave: number = 0;
   kills: number = 0;
@@ -151,8 +152,8 @@ export class GameScene extends Phaser.Scene {
     // Create player
     this.createPlayer();
 
-    // Create ghost
-    this.createGhost();
+    // Ghost will spawn after delay (not immediately)
+    this.ghostSpawned = false;
 
     // Setup colliders
     this.setupColliders();
@@ -190,14 +191,64 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createPlayer(): void {
-    // Start in center of map
-    this.player = new Player(this, this.mapWidth / 2, this.mapHeight / 2);
+    // Start in corridor between rooms (not inside any room)
+    // Room layouts: center rooms are at x:280-440, corridor is around x:200 or x:500
+    this.player = new Player(this, this.mapWidth / 2, 50);
     this.player.gold = SaveManager.getStartGoldBonus();
   }
 
-  private createGhost(): void {
-    // Spawn ghost at corner of map
-    this.ghost = new Ghost(this, 100, 100, 1);
+  private spawnGhost(): void {
+    if (this.ghostSpawned) return;
+    this.ghostSpawned = true;
+
+    this.wave++;
+    // Spawn at bottom of map in corridor
+    const x = this.mapWidth / 2;
+    const y = this.mapHeight - 50;
+
+    this.ghost = new Ghost(this, x, y, this.wave);
+
+    // Setup ghost colliders
+    this.physics.add.collider(this.ghost, this.walls);
+    this.physics.add.collider(this.ghost, this.doors, (ghost, door) => {
+      const g = ghost as Ghost;
+      const d = door as Phaser.Physics.Arcade.Sprite;
+      if (d.getData('closed')) {
+        g.onDoorCollision(d);
+      }
+    }, (ghost, door) => {
+      const d = door as Phaser.Physics.Arcade.Sprite;
+      return d.getData('closed') === true;
+    });
+
+    this.physics.add.overlap(this.ghost, this.player, () => {
+      if (this.player.state === PlayerState.MOVING && !this.player.isInvincible()) {
+        this.endGame(false, '被猎梦者抓住了！');
+      }
+    });
+
+    this.physics.add.overlap(this.ghost, this.beds, (ghost, bed) => {
+      const b = bed as Phaser.Physics.Arcade.Sprite;
+      const room = b.getData('room') as Room;
+      if (this.player.state === PlayerState.LYING_DOWN && this.player.currentRoom === room) {
+        this.endGame(false, '猎梦者闯入了你的房间！');
+      }
+    });
+
+    this.physics.add.overlap(this.bullets, this.ghost, (ghost, bullet) => {
+      bullet.destroy();
+      const g = ghost as Ghost;
+      if (g.takeDamage(BUILDING_CONFIGS.turret.damage || 5)) {
+        this.kills++;
+        this.player.gold += GAME_CONFIG.killReward;
+        g.destroy();
+        this.ghost = null;
+        // Spawn new ghost after delay
+        this.time.delayedCall(3000, () => this.spawnNewGhost());
+      }
+    });
+
+    this.showMessage('猎梦者出现了！快找房间躺下！');
   }
 
   private setupColliders(): void {
@@ -226,51 +277,7 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    // Ghost collides with walls
-    this.physics.add.collider(this.ghost, this.walls);
-
-    // Ghost collides with closed doors
-    this.physics.add.collider(this.ghost, this.doors, (ghost, door) => {
-      const g = ghost as Ghost;
-      const d = door as Phaser.Physics.Arcade.Sprite;
-      if (d.getData('closed')) {
-        g.onDoorCollision(d);
-      }
-    }, (ghost, door) => {
-      const d = door as Phaser.Physics.Arcade.Sprite;
-      return d.getData('closed') === true;
-    });
-
-    // Ghost overlaps with player - game over if player is moving
-    this.physics.add.overlap(this.ghost, this.player, () => {
-      if (this.player.state === PlayerState.MOVING && !this.player.isInvincible()) {
-        this.endGame(false, '被猎梦者抓住了！');
-      }
-    });
-
-    // Ghost overlaps with beds - if player is in that bed, game over
-    this.physics.add.overlap(this.ghost, this.beds, (ghost, bed) => {
-      const b = bed as Phaser.Physics.Arcade.Sprite;
-      const room = b.getData('room') as Room;
-
-      if (this.player.state === PlayerState.LYING_DOWN &&
-          this.player.currentRoom === room) {
-        this.endGame(false, '猎梦者闯入了你的房间！');
-      }
-    });
-
-    // Bullets hit ghost
-    this.physics.add.overlap(this.bullets, this.ghost, (ghost, bullet) => {
-      bullet.destroy();
-      const g = ghost as Ghost;
-      if (g.takeDamage(BUILDING_CONFIGS.turret.damage || 5)) {
-        this.kills++;
-        this.player.gold += GAME_CONFIG.killReward;
-        g.destroy();
-        // Spawn new ghost after delay
-        this.time.delayedCall(3000, () => this.spawnNewGhost());
-      }
-    });
+    // Ghost colliders are set up when ghost spawns (in spawnGhost/spawnNewGhost)
   }
 
   private setupCamera(): void {
@@ -431,6 +438,7 @@ export class GameScene extends Phaser.Scene {
     const edge = Phaser.Math.Between(0, 3);
     let x: number, y: number;
 
+    // Spawn at map edges (in corridors)
     switch (edge) {
       case 0: x = 50; y = Phaser.Math.Between(100, this.mapHeight - 100); break;
       case 1: x = this.mapWidth - 50; y = Phaser.Math.Between(100, this.mapHeight - 100); break;
@@ -440,7 +448,7 @@ export class GameScene extends Phaser.Scene {
 
     this.ghost = new Ghost(this, x, y, this.wave);
 
-    // Re-setup ghost colliders
+    // Setup ghost colliders
     this.physics.add.collider(this.ghost, this.walls);
     this.physics.add.collider(this.ghost, this.doors, (ghost, door) => {
       const g = ghost as Ghost;
@@ -474,6 +482,7 @@ export class GameScene extends Phaser.Scene {
         this.kills++;
         this.player.gold += GAME_CONFIG.killReward;
         g.destroy();
+        this.ghost = null;
         this.time.delayedCall(3000, () => this.spawnNewGhost());
       }
     });
@@ -486,6 +495,11 @@ export class GameScene extends Phaser.Scene {
 
     const dt = delta / 1000;
     this.gameTimer += dt;
+
+    // Spawn ghost after delay
+    if (!this.ghostSpawned && this.gameTimer >= GAME_CONFIG.ghostDelay) {
+      this.spawnGhost();
+    }
 
     // Update player
     this.player.update(dt);
@@ -555,13 +569,15 @@ export class GameScene extends Phaser.Scene {
         const maxHp = door.getData('maxHp') || 100;
         const pct = hp / maxHp;
 
-        // Convert to screen coords
-        const screenPos = this.cameras.main.worldToCamera(door.x, door.y - 20);
+        // Convert world coords to screen coords
+        const cam = this.cameras.main;
+        const screenX = (door.x - cam.scrollX) * cam.zoom;
+        const screenY = (door.y - 20 - cam.scrollY) * cam.zoom;
 
         this.uiGraphics.fillStyle(0x000000);
-        this.uiGraphics.fillRect(screenPos.x - 25, screenPos.y, 50, 5);
+        this.uiGraphics.fillRect(screenX - 25, screenY, 50, 5);
         this.uiGraphics.fillStyle(pct > 0.5 ? 0x4ade80 : pct > 0.25 ? 0xfacc15 : 0xef4444);
-        this.uiGraphics.fillRect(screenPos.x - 25, screenPos.y, 50 * pct, 5);
+        this.uiGraphics.fillRect(screenX - 25, screenY, 50 * pct, 5);
       }
     });
   }
@@ -621,7 +637,7 @@ export class GameScene extends Phaser.Scene {
     this.showMessage(message);
 
     this.player.stopMoving();
-    if (this.ghost) this.ghost.setVelocity(0, 0);
+    if (this.ghost && this.ghost.active) this.ghost.setVelocity(0, 0);
 
     const beeReward = Math.floor(this.gameTimer / GAME_CONFIG.beeRewardRate) + this.kills;
     SaveManager.recordGame(this.gameTimer, this.kills, beeReward);
